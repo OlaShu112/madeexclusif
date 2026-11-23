@@ -12,16 +12,31 @@ use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    /** The only bottle sizes the shop sells. */
+    /** The only bottle sizes the perfume shop sells. */
     public const SIZES = [50, 100];
 
     protected $fillable = [
-        'brand_id', 'category_id', 'name', 'slug', 'description',
-        'notes_top', 'notes_heart', 'notes_base', 'gender', 'concentration',
-        'image', 'accent', 'is_featured', 'is_active',
+        'store_id',
+        'brand_id',
+        'category_id',
+        'name',
+        'slug',
+        'description',
+        'notes_top',
+        'notes_heart',
+        'notes_base',
+        'gender',
+        'concentration',
+        'image',
+        'accent',
+        'is_featured',
+        'is_active',
     ];
 
-    protected $casts = ['is_featured' => 'boolean', 'is_active' => 'boolean'];
+    protected $casts = [
+        'is_featured' => 'boolean',
+        'is_active' => 'boolean',
+    ];
 
     protected $appends = ['image_url'];
 
@@ -31,14 +46,18 @@ class Product extends Model
             $base = $p->slug ?: Str::slug($p->name);
             $slug = $base;
             $i = 2;
+
             while (static::where('slug', $slug)->exists()) {
                 $slug = $base . '-' . $i++;
             }
+
             $p->slug = $slug;
         });
     }
 
-    /** Public URL of the uploaded photo, or null (the storefront then draws a bottle placeholder). */
+    /**
+     * Public URL of the uploaded product image.
+     */
     protected function imageUrl(): Attribute
     {
         return Attribute::get(function () {
@@ -52,26 +71,50 @@ class Product extends Model
         });
     }
 
+    /**
+     * Store that owns this product.
+     */
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class, 'store_id');
+    }
+
+    /**
+     * Brand associated with this product.
+     */
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
     }
 
+    /**
+     * Category associated with this product.
+     */
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
+    /**
+     * Product variants, ordered by bottle size.
+     */
     public function variants(): HasMany
     {
-        return $this->hasMany(ProductVariant::class)->orderBy('size_ml');
+        return $this->hasMany(ProductVariant::class)
+            ->orderBy('size_ml');
     }
 
+    /**
+     * Customer reviews.
+     */
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class);
     }
 
+    /**
+     * Scope for active products.
+     */
     public function scopeActive(Builder $q): Builder
     {
         return $q->where('is_active', true);

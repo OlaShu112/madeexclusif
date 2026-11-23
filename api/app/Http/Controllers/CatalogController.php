@@ -5,89 +5,266 @@ namespace App\Http\Controllers;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Store;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CatalogController extends Controller
 {
-    /** GET /api/products?q=&category=&brand=&gender=&min_price=&max_price=&sort=&per_page= */
+    /**
+     * GET /api/products
+     *
+     * Supported query parameters:
+     * store, q, category, brand, gender, featured,
+     * min_price, max_price, sort, per_page
+     */
     public function index(Request $request): JsonResponse
     {
-        $request->validate([
-            'sort' => ['nullable', 'in:newest,price_asc,price_desc,name'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:48'],
+        $data = $request->validate([
+            'store' => ['nullable', 'string', 'max:255'],
+            'q' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'brand' => ['nullable', 'string', 'max:255'],
+            'gender' => ['nullable', 'string', 'max:50'],
+            'featured' => ['nullable', 'boolean'],
+            'min_price' => ['nullable', 'numeric', 'min:0'],
+            'max_price' => ['nullable', 'numeric', 'min:0'],
+            'sort' => [
+                'nullable',
+                'in:newest,price_asc,price_desc,name',
+            ],
+            'per_page' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:48',
+            ],
         ]);
 
+        if (
+            isset($data['min_price'], $data['max_price']) &&
+            $data['min_price'] > $data['max_price']
+        ) {
+            throw ValidationException::withMessages([
+                'max_price' => 'Maximum price must be greater than or equal to minimum price.',
+            ]);
+        }
+
+        $store = $this->resolveStore($request);
+
         $query = Product::active()
-            ->with(['brand:id,name,slug', 'category:id,name,slug'])
+            ->where('store_id', $store->id)
+            ->with([
+                'brand:id,name,slug',
+                'category:id,name,slug',
+                'store:id,slug,name,type,is_main',
+            ])
             ->withMin('variants as min_price', 'price')
             ->withAvg('reviews as rating_avg', 'rating')
             ->withCount('reviews');
 
-        if ($q = trim((string) $request->query('q'))) {
-            $query->where(function ($w) use ($q) {
-                $w->where('name', 'like', "%{$q}%")
-                  ->orWhere('notes_top', 'like', "%{$q}%")
-                  ->orWhere('notes_heart', 'like', "%{$q}%")
-                  ->orWhere('notes_base', 'like', "%{$q}%")
-                  ->orWhereHas('brand', fn ($b) => $b->where('name', 'like', "%{$q}%"));
+        if (! empty($data['q'])) {
+            $search = trim($data['q']);
+
+            $query->where(function ($builder) use ($search) {
+                $builder
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('notes_top', 'like', "%{$search}%")
+                    ->orWhere('notes_heart', 'like', "%{$search}%")
+                    ->orWhere('notes_base', 'like', "%{$search}%")
+                    ->orWhere('concentration', 'like', "%{$search}%")
+                    ->orWhereHas('brand', function ($brand) use ($search) {
+                        $brand->where('name', 'like', "%{$search}%");
+                    });
             });
         }
-        if ($c = $request->query('category')) {
-            $query->whereHas('category', fn ($x) => $x->where('slug', $c));
-        }
-        if ($b = $request->query('brand')) {
-            $query->whereHas('brand', fn ($x) => $x->where('slug', $b));
-        }
-        if ($g = $request->query('gender')) {
-            $query->where('gender', $g);
-        }
-        if ($request->filled('featured')) {
-            $query->where('is_featured', true);
-        }
-        if ($request->filled('min_price')) {
-            $query->whereHas('variants', fn ($v) => $v->where('price', '>=', (float) $request->query('min_price')));
-        }
-        if ($request->filled('max_price')) {
-            $query->whereHas('variants', fn ($v) => $v->where('price', '<=', (float) $request->query('max_price')));
+
+        if (! empty($data['category'])) {
+            $query->whereHas('category', function ($builder) use ($data) {
+                $builder->where('slug', $data['category']);
+            });
         }
 
-        match ($request->query('sort', 'newest')) {
-            'price_asc' => $query->orderBy('min_price'),
-            'price_desc' => $query->orderByDesc('min_price'),
-            'name' => $query->orderBy('name'),
+        if (! empty($data['brand'])) {
+            $query->whereHas('brand', function ($builder) use ($data) {
+                $builder->where('slug', $data['brand']);
+            });
+        }
+
+        if (! empty($data['gender'])) {
+            $query->where('gender', $data['gender']);
+        }
+
+        if (! empty($data['featured'])) {
+            $query->where('is_featured', true);
+        }
+
+        // Both price bounds must apply to the same variant.
+        if (
+            isset($data['min_price']) ||
+            isset($data['max_price'])
+        ) {
+            $query->whereHas('variants', function ($variant) use ($data) {
+                if (isset($data['min_price'])) {
+                    $variant->where('price', '>=', $data['min_price']);
+                }
+
+                if (isset($data['max_price'])) {
+                    $variant->where('price', '<=', $data['max_price']);
+                }
+            });
+        }
+
+        $sort = $data['sort'] ?? 'newest';
+
+        match ($sort) {
+            'price_asc' => $query
+                ->orderBy('min_price')
+                ->orderBy('id'),
+
+            'price_desc' => $query
+                ->orderByDesc('min_price')
+                ->orderBy('id'),
+
+            'name' => $query
+                ->orderBy('name')
+                ->orderBy('id'),
+
             default => $query->latest(),
         };
 
-        return response()->json($query->paginate((int) $request->query('per_page', 12))->withQueryString());
+        $products = $query->paginate(
+            (int) ($data['per_page'] ?? 12)
+        )->withQueryString();
+
+        return response()->json($products);
     }
 
-    public function show(string $slug): JsonResponse
+    /**
+     * GET /api/products/{slug}
+     *
+     * Display a product belonging to an active store.
+     */
+    public function show(Request $request, string $slug): JsonResponse
     {
+        $request->validate([
+            'store' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $store = $this->resolveStore($request);
+
         $product = Product::active()
             ->where('slug', $slug)
-            ->with(['brand', 'category', 'variants', 'reviews.user'])
+            ->where('store_id', $store->id)
+            ->with([
+                'brand',
+                'category',
+                'variants',
+                'reviews.user',
+                'store:id,slug,name,type,is_main,tagline,logo',
+            ])
             ->withAvg('reviews as rating_avg', 'rating')
             ->withCount('reviews')
             ->firstOrFail();
 
-        $related = Product::active()
-            ->where('id', '!=', $product->id)
-            ->where(fn ($q) => $q->where('category_id', $product->category_id)->orWhere('brand_id', $product->brand_id))
-            ->withMin('variants as min_price', 'price')
-            ->with('brand:id,name')
-            ->limit(4)
-            ->get();
-
-        return response()->json(['product' => $product, 'related' => $related]);
+        return response()->json($product);
     }
 
-    public function filters(): JsonResponse
+    /**
+     * GET /api/filters
+     *
+     * Return available categories, brands
+     * and price range for the selected store.
+     */
+    public function filters(Request $request): JsonResponse
     {
-        return response()->json([
-            'categories' => Category::orderBy('name')->get(['id', 'name', 'slug']),
-            'brands' => Brand::orderBy('name')->get(['id', 'name', 'slug']),
-            'genders' => ['women', 'men', 'unisex'],
+        $request->validate([
+            'store' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $store = $this->resolveStore($request);
+
+        $categories = Category::query()
+            ->where('type', $store->type)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'slug',
+            ]);
+
+        $brands = Brand::query()
+            ->whereHas('products', function ($query) use ($store) {
+                $query->active()
+                    ->where('store_id', $store->id);
+            })
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'slug',
+            ]);
+
+        $priceRange = Product::active()
+            ->where('store_id', $store->id)
+            ->whereHas('variants')
+            ->withMin('variants as min_price', 'price')
+            ->withMax('variants as max_price', 'price')
+            ->get([
+                'id',
+            ]);
+
+        $minPrice = $priceRange->min('min_price');
+        $maxPrice = $priceRange->max('max_price');
+
+        return response()->json([
+            'store' => [
+                'id' => $store->id,
+                'name' => $store->name,
+                'slug' => $store->slug,
+                'type' => $store->type,
+                'is_main' => $store->is_main,
+            ],
+
+            'categories' => $categories,
+
+            'brands' => $brands,
+
+            'price_range' => [
+                'min' => $minPrice !== null
+                    ? (float) $minPrice
+                    : 0,
+
+                'max' => $maxPrice !== null
+                    ? (float) $maxPrice
+                    : 0,
+            ],
+        ]);
+    }
+
+    /**
+     * Resolve the active store.
+     *
+     * If no store slug is supplied,
+     * use the main Made Exclusif store.
+     */
+    private function resolveStore(Request $request): Store
+    {
+        $slug = $request->query('store');
+
+        if ($slug !== null && $slug !== '') {
+            return Store::active()
+                ->where('slug', $slug)
+                ->firstOrFail();
+        }
+
+        $store = Store::main();
+
+        if ($store->status !== 'active') {
+            abort(404, 'The main store is currently unavailable.');
+        }
+
+        return $store;
     }
 }

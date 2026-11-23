@@ -22,3 +22,6 @@ api/bootstrap/cache/*.php
 
 # IDE
 .vscode/
+
+# Backup files
+*.bak

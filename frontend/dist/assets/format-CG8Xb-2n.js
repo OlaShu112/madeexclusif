@@ -1,1 +1,0 @@
-const t=new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP"}),n=e=>t.format(Number(e)||0),r=e=>new Date(e).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});export{r as d,n as m};
