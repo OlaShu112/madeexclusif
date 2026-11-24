@@ -16,102 +16,302 @@ class OrderController extends Controller
     private const FREE_SHIPPING_OVER = 100.00;
     private const SHIPPING_FLAT = 5.95;
 
-    /** Customer's own order history. */
+    /**
+     * Display the authenticated customer's orders.
+     */
     public function index(Request $request): JsonResponse
     {
         return response()->json(
-            $request->user()->orders()->with('items')->latest()->paginate(10)
+            $request->user()
+                ->orders()
+                ->with('items')
+                ->latest()
+                ->paginate(10)
         );
     }
 
-    public function show(Request $request, string $number): JsonResponse
-    {
-        $order = $request->user()->orders()->with('items')->where('number', $number)->firstOrFail();
+    /**
+     * Display an individual customer order.
+     */
+    public function show(
+        Request $request,
+        string $number
+    ): JsonResponse {
+        $order = $request->user()
+            ->orders()
+            ->with('items')
+            ->where('number', $number)
+            ->firstOrFail();
 
         return response()->json($order);
     }
 
     /**
-     * Guest or authenticated checkout. Prices, stock and totals are all recomputed
-     * server-side - the client only sends variant ids and quantities.
+     * Create a customer order.
+     *
+     * All product prices and stock quantities
+     * are retrieved from the database.
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
-            'items' => ['required', 'array', 'min:1', 'max:30'],
-            'items.*.variant_id' => ['required', 'integer', 'exists:product_variants,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10'],
-            'coupon_code' => ['nullable', 'string', 'max:50'],
-            'payment_method' => ['required', 'in:card,paypal,cod'],
-            'shipping_address.full_name' => ['required', 'string', 'max:120'],
-            'shipping_address.line1' => ['required', 'string', 'max:190'],
-            'shipping_address.line2' => ['nullable', 'string', 'max:190'],
-            'shipping_address.city' => ['required', 'string', 'max:100'],
-            'shipping_address.postcode' => ['required', 'string', 'max:20'],
-            'shipping_address.country' => ['required', 'string', 'size:2'],
+            'email' => [
+                'required',
+                'email'
+            ],
+
+            'items' => [
+                'required',
+                'array',
+                'min:1',
+                'max:30'
+            ],
+
+            'items.*.variant_id' => [
+                'required',
+                'integer',
+                'exists:product_variants,id'
+            ],
+
+            'items.*.quantity' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:10'
+            ],
+
+            'coupon_code' => [
+                'nullable',
+                'string',
+                'max:50'
+            ],
+
+            'payment_method' => [
+                'required',
+                'in:card,paypal,cod'
+            ],
+
+            'shipping_address.full_name' => [
+                'required',
+                'string',
+                'max:120'
+            ],
+
+            'shipping_address.line1' => [
+                'required',
+                'string',
+                'max:190'
+            ],
+
+            'shipping_address.line2' => [
+                'nullable',
+                'string',
+                'max:190'
+            ],
+
+            'shipping_address.city' => [
+                'required',
+                'string',
+                'max:100'
+            ],
+
+            'shipping_address.postcode' => [
+                'required',
+                'string',
+                'max:20'
+            ],
+
+            'shipping_address.country' => [
+                'required',
+                'string',
+                'size:2'
+            ],
         ]);
 
-        $user = $request->user('sanctum'); // optional auth: works for guests too
+        $user = $request->user('sanctum');
 
         $order = DB::transaction(function () use ($data, $user) {
-            // Merge duplicate lines, then lock the rows we are about to decrement.
+
+            /*
+            |--------------------------------------------------------------------------
+            | GROUP ORDER ITEMS
+            |--------------------------------------------------------------------------
+            */
+
             $wanted = collect($data['items'])
                 ->groupBy('variant_id')
-                ->map(fn ($rows) => $rows->sum('quantity'));
+                ->map(function ($rows) {
+                    return $rows->sum('quantity');
+                });
 
-            $variants = ProductVariant::with('product:id,name,is_active')
+            /*
+            |--------------------------------------------------------------------------
+            | RETRIEVE PRODUCT VARIANTS
+            |--------------------------------------------------------------------------
+            */
+
+            $variants = ProductVariant::with(
+                'product:id,name,is_active'
+            )
                 ->whereIn('id', $wanted->keys())
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
 
-            $subtotal = 0.0;
+            $subtotal = 0.00;
             $lines = [];
 
-            foreach ($wanted as $variantId => $qty) {
-                $variant = $variants[$variantId];
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDATE ITEMS AND CALCULATE TOTALS
+            |--------------------------------------------------------------------------
+            */
 
-                if (! $variant->product->is_active) {
-                    throw ValidationException::withMessages(['items' => "{$variant->product->name} is no longer available."]);
-                }
-                if ($variant->stock < $qty) {
+            foreach ($wanted as $variantId => $qty) {
+
+                $variant = $variants->get($variantId);
+
+                if (! $variant || ! $variant->product) {
                     throw ValidationException::withMessages([
-                        'items' => "Only {$variant->stock} left of {$variant->product->name} ({$variant->size_ml}ml).",
+                        'items' => 'One or more products are unavailable.'
                     ]);
                 }
 
-                $line = round((float) $variant->price * $qty, 2);
-                $subtotal += $line;
+                if (! $variant->product->is_active) {
+                    throw ValidationException::withMessages([
+                        'items' =>
+                            "{$variant->product->name} is no longer available."
+                    ]);
+                }
+
+                $qty = (int) $qty;
+
+                if ($qty > 10) {
+                    throw ValidationException::withMessages([
+                        'items' =>
+                            'Maximum quantity per fragrance size is 10.'
+                    ]);
+                }
+
+                if ($variant->stock < $qty) {
+                    throw ValidationException::withMessages([
+                        'items' =>
+                            "Only {$variant->stock} left of {$variant->product->name} ({$variant->size_ml}ml)."
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | CALCULATE LINE TOTAL
+                |--------------------------------------------------------------------------
+                */
+
+                $unitPrice = round(
+                    (float) $variant->price,
+                    2
+                );
+
+                $lineTotal = round(
+                    $unitPrice * $qty,
+                    2
+                );
+
+                $subtotal = round(
+                    $subtotal + $lineTotal,
+                    2
+                );
+
+                /*
+                |--------------------------------------------------------------------------
+                | PREPARE ORDER ITEM
+                |--------------------------------------------------------------------------
+                */
+
                 $lines[] = [
                     'product_variant_id' => $variant->id,
                     'name' => $variant->product->name,
                     'size_ml' => $variant->size_ml,
-                    'unit_price' => $variant->price,
+                    'unit_price' => $unitPrice,
                     'quantity' => $qty,
-                    'line_total' => $line,
+                    'line_total' => $lineTotal,
                 ];
+
+                /*
+                |--------------------------------------------------------------------------
+                | RESERVE STOCK
+                |--------------------------------------------------------------------------
+                */
+
                 $variant->decrement('stock', $qty);
             }
 
-            $discount = 0.0;
+            /*
+            |--------------------------------------------------------------------------
+            | APPLY COUPON
+            |--------------------------------------------------------------------------
+            */
+
+            $discount = 0.00;
             $couponCode = null;
+
             if (! empty($data['coupon_code'])) {
-                $coupon = Coupon::where('code', strtoupper(trim($data['coupon_code'])))->lockForUpdate()->first();
+
+                $coupon = Coupon::where(
+                    'code',
+                    strtoupper(trim($data['coupon_code']))
+                )
+                    ->lockForUpdate()
+                    ->first();
+
                 if (! $coupon) {
-                    throw ValidationException::withMessages(['coupon_code' => 'Invalid code.']);
+                    throw ValidationException::withMessages([
+                        'coupon_code' => 'Invalid coupon code.'
+                    ]);
                 }
+
                 [$amount, $error] = $coupon->discountFor($subtotal);
+
                 if ($error) {
-                    throw ValidationException::withMessages(['coupon_code' => $error]);
+                    throw ValidationException::withMessages([
+                        'coupon_code' => $error
+                    ]);
                 }
-                $discount = $amount;
+
+                $discount = round(
+                    (float) $amount,
+                    2
+                );
+
                 $couponCode = $coupon->code;
+
                 $coupon->increment('used_count');
             }
 
-            $afterDiscount = max($subtotal - $discount, 0);
-            $shipping = $afterDiscount >= self::FREE_SHIPPING_OVER ? 0.0 : self::SHIPPING_FLAT;
+            /*
+            |--------------------------------------------------------------------------
+            | CALCULATE SHIPPING
+            |--------------------------------------------------------------------------
+            */
+
+            $afterDiscount = max(
+                round($subtotal - $discount, 2),
+                0
+            );
+
+            $shipping = $afterDiscount >= self::FREE_SHIPPING_OVER
+                ? 0.00
+                : self::SHIPPING_FLAT;
+
+            $total = round(
+                $afterDiscount + $shipping,
+                2
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | CREATE ORDER
+            |--------------------------------------------------------------------------
+            */
 
             $order = Order::create([
                 'number' => 'MX-' . strtoupper(Str::random(8)),
@@ -123,18 +323,37 @@ class OrderController extends Controller
                 'subtotal' => $subtotal,
                 'discount' => $discount,
                 'shipping' => $shipping,
-                'total' => round($afterDiscount + $shipping, 2),
+                'total' => $total,
                 'coupon_code' => $couponCode,
                 'shipping_address' => $data['shipping_address'],
             ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVE ORDER ITEMS WITH LINE TOTAL
+            |--------------------------------------------------------------------------
+            */
 
             $order->items()->createMany($lines);
 
             return $order->load('items');
         });
 
-        // TODO(payments): create a Stripe PaymentIntent here for $order->total and
-        // return its client_secret; mark the order 'paid' from a verified webhook.
+        /*
+        |--------------------------------------------------------------------------
+        | PAYMENT INTEGRATION
+        |--------------------------------------------------------------------------
+        |
+        | The order is currently pending.
+        |
+        | Stripe payment processing will be implemented
+        | separately using a Stripe Checkout Session
+        | and a verified webhook.
+        |
+        | Do not mark an order as paid until the payment
+        | provider has confirmed successful payment.
+        |
+        */
 
         return response()->json($order, 201);
     }

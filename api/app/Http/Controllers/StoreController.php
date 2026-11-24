@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
+use App\Models\BusinessCategory;
 use App\Models\Category;
 use App\Models\Store;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -21,9 +23,11 @@ class StoreController extends Controller
     public function show(string $slug): JsonResponse
     {
         $store = Store::active()
+            ->with('businessCategory:id,name,slug')
             ->where('slug', $slug)
             ->firstOrFail([
                 'id',
+                'business_category_id',
                 'name',
                 'slug',
                 'type',
@@ -50,24 +54,40 @@ class StoreController extends Controller
             ]);
         }
 
+        if (is_string($request->input('name'))) {
+            $request->merge([
+                'name' => trim($request->input('name')),
+            ]);
+        }
+
         $data = $request->validate([
             'name' => [
                 'required',
                 'string',
                 'min:2',
-                'max:80',
+                'max:120',
                 'unique:stores,name',
                 'unique:brands,name',
             ],
+
+            'business_category_id' => [
+                'required',
+                'integer',
+                Rule::exists('business_categories', 'id')
+                    ->where('is_active', true),
+            ],
+
             'tagline' => [
                 'nullable',
                 'string',
-                'max:140',
+                'max:255',
             ],
+
             'accent' => [
                 'nullable',
                 'regex:/^#[0-9a-fA-F]{6}$/',
             ],
+
             'logo' => [
                 'nullable',
                 'image',
@@ -89,19 +109,56 @@ class StoreController extends Controller
                 $data,
                 $logoPath
             ) {
+                // Prevent simultaneous registrations
+                // by the same customer.
+                $lockedUser = $user->newQuery()
+                    ->lockForUpdate()
+                    ->findOrFail($user->id);
+
+                if ($lockedUser->store()->exists()) {
+                    throw ValidationException::withMessages([
+                        'name' => 'You already have a store.',
+                    ]);
+                }
+
+                // Retrieve the selected business category.
+                $businessCategory = BusinessCategory::active()
+                    ->lockForUpdate()
+                    ->find($data['business_category_id']);
+
+                if (! $businessCategory) {
+                    throw ValidationException::withMessages([
+                        'business_category_id' =>
+                            'The selected business category is unavailable.',
+                    ]);
+                }
+
+                // Create the store brand.
                 $brand = Brand::create([
                     'name' => $data['name'],
                 ]);
 
+                // Create the seller storefront.
                 return Store::create([
                     'user_id' => $user->id,
+
                     'brand_id' => $brand->id,
+
+                    'business_category_id' =>
+                        $businessCategory->id,
+
                     'name' => $data['name'],
+
                     'tagline' => $data['tagline'] ?? null,
+
                     'accent' => $data['accent'] ?? '#1a1a1a',
+
                     'logo' => $logoPath,
-                    'type' => 'clothing',
+
+                    'type' => $businessCategory->slug,
+
                     'status' => 'pending',
+
                     'is_main' => false,
                 ]);
             });
@@ -115,8 +172,10 @@ class StoreController extends Controller
         }
 
         return response()->json([
-            'message' => 'Store created successfully. Your store is awaiting approval.',
-            'store' => $store,
+            'message' =>
+                'Store created successfully. Your store is awaiting approval.',
+
+            'store' => $store->load('businessCategory'),
         ], 201);
     }
 
@@ -136,6 +195,8 @@ class StoreController extends Controller
             ]);
         }
 
+        $store->load('businessCategory');
+
         $paidStatuses = [
             'paid',
             'processing',
@@ -151,18 +212,30 @@ class StoreController extends Controller
             ->whereIn('status', $paidStatuses)
             ->sum('total');
 
+        // Retrieve product categories belonging
+        // to the seller's business category.
         $categories = Category::query()
-            ->where('type', $store->type)
+            ->whereNotNull('business_category_id')
+            ->where(
+                'business_category_id',
+                $store->business_category_id
+            )
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get([
+                'id',
+                'name',
+                'slug',
+            ]);
 
         return response()->json([
             'store' => $store,
+
             'stats' => [
                 'products' => $productsCount,
                 'orders' => $ordersCount,
                 'revenue' => (float) $totalRevenue,
             ],
+
             'categories' => $categories,
         ]);
     }
@@ -170,8 +243,8 @@ class StoreController extends Controller
     /**
      * Allow an approved seller to update store branding.
      *
-     * Store name, slug, owner, type and approval status
-     * cannot be changed through this endpoint.
+     * Store name, slug, owner, business category and
+     * approval status cannot be changed here.
      */
     public function update(Request $request): JsonResponse
     {
@@ -188,12 +261,14 @@ class StoreController extends Controller
                 'sometimes',
                 'nullable',
                 'string',
-                'max:140',
+                'max:255',
             ],
+
             'accent' => [
                 'sometimes',
                 'regex:/^#[0-9a-fA-F]{6}$/',
             ],
+
             'logo' => [
                 'sometimes',
                 'nullable',
@@ -236,7 +311,9 @@ class StoreController extends Controller
 
         return response()->json([
             'message' => 'Store branding updated successfully.',
-            'store' => $store->fresh(),
+
+            'store' => $store->fresh()
+                ->load('businessCategory'),
         ]);
     }
 }

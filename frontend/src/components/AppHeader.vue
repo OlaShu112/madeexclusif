@@ -253,10 +253,18 @@ async function logout() {
         </template>
 
         <template v-else>
-          <span class="brand__name">
-            Made Exclusif
-          </span>
-        </template>
+  <!-- Main Made Exclusif logo -->
+  <img
+    src="/images/made-exclusif-logo.png"
+    alt=""
+    class="brand__img brand__img--main"
+  />
+
+  <!-- Brand name -->
+  <span class="brand__name">
+    Made Exclusif
+  </span>
+</template>
       </router-link>
 
       <!-- Main navigation -->
@@ -405,7 +413,19 @@ async function logout() {
   object-fit: contain;
   flex-shrink: 0;
 }
+.brand__img--main {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 
+@media (max-width: 640px) {
+  .brand__img--main {
+    width: 34px;
+    height: 34px;
+  }
+}
 .brand__name {
   overflow: hidden;
   text-overflow: ellipsis;

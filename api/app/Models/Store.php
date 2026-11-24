@@ -11,57 +11,96 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * A store is one branded "website" on the platform: the main MadeExlusif perfume store,
- * or a seller's own store (e.g. clothing) living at /s/{slug}.
+ * Represents an independent business storefront
+ * operating on the Made Exclusif marketplace.
  */
 class Store extends Model
 {
-    public const STATUSES = ['pending', 'active', 'suspended'];
-
-    protected $fillable = [
-        'user_id', 'brand_id', 'name', 'slug', 'type', 'tagline', 'logo', 'accent', 'is_main', 'status',
+    public const STATUSES = [
+        'pending',
+        'active',
+        'suspended',
     ];
 
-    protected $casts = ['is_main' => 'boolean'];
+    protected $fillable = [
+        'user_id',
+        'brand_id',
+        'business_category_id',
+        'name',
+        'slug',
+        'type',
+        'tagline',
+        'logo',
+        'accent',
+        'is_main',
+        'status',
+    ];
 
-    protected $appends = ['logo_url'];
+    protected $casts = [
+        'is_main' => 'boolean',
+    ];
+
+    protected $appends = [
+        'logo_url',
+    ];
 
     protected static function booted(): void
     {
-        static::creating(function (Store $s) {
-            $base = $s->slug ?: (Str::slug($s->name) ?: 'store');
+        static::creating(function (Store $store) {
+
+            $base = $store->slug
+                ?: (Str::slug($store->name) ?: 'store');
+
             $slug = $base;
+
             $i = 2;
+
             while (static::where('slug', $slug)->exists()) {
                 $slug = $base . '-' . $i++;
             }
-            $s->slug = $slug;
+
+            $store->slug = $slug;
         });
     }
 
     public static function main(): self
     {
-        return static::where('is_main', true)->firstOrFail();
+        return static::where('is_main', true)
+            ->firstOrFail();
     }
 
     protected function logoUrl(): Attribute
     {
-        return Attribute::get(fn () => $this->logo ? Storage::disk('public')->url($this->logo) : null);
+        return Attribute::get(
+            fn () => $this->logo
+                ? Storage::disk('public')->url($this->logo)
+                : null
+        );
     }
 
-    public function scopeActive(Builder $q): Builder
+    public function scopeActive(Builder $query): Builder
     {
-        return $q->where('status', 'active');
+        return $query->where('status', 'active');
     }
 
     public function owner(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(
+            User::class,
+            'user_id'
+        );
     }
 
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function businessCategory(): BelongsTo
+    {
+        return $this->belongsTo(
+            BusinessCategory::class
+        );
     }
 
     public function products(): HasMany

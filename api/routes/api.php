@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BusinessCategoryController;
 use App\Http\Controllers\Admin\BrandCategoryAdminController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OrderAdminController;
@@ -34,6 +35,10 @@ Route::get('/products/{slug}', [CatalogController::class, 'show']);
 
 Route::get('/filters', [CatalogController::class, 'filters']);
 
+// Business Categories
+Route::get('/business-categories', [BusinessCategoryController::class, 'index']);
+
+Route::get('/business-categories/{slug}', [BusinessCategoryController::class, 'show']);
 Route::get('/stores/{slug}', [StoreController::class, 'show']);
 
 Route::post('/coupons/check', [CouponController::class, 'check'])

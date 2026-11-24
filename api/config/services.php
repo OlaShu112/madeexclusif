@@ -7,26 +7,48 @@ return [
     | Third Party Services
     |--------------------------------------------------------------------------
     |
-    | This file is for storing the credentials for third party services such
-    | as Resend, Postmark, AWS, and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
+    | This file stores the credentials and configuration for third-party
+    | services used by the Made Exclusif application.
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Postmark
+    |--------------------------------------------------------------------------
+    */
+
     'postmark' => [
-        'key' => env('POSTMARK_API_KEY'),
+        'token' => env('POSTMARK_TOKEN'),
     ],
 
-    'resend' => [
-        'key' => env('RESEND_API_KEY'),
-    ],
+    /*
+    |--------------------------------------------------------------------------
+    | Amazon SES
+    |--------------------------------------------------------------------------
+    */
 
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Resend
+    |--------------------------------------------------------------------------
+    */
+
+    'resend' => [
+        'key' => env('RESEND_KEY'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Slack
+    |--------------------------------------------------------------------------
+    */
 
     'slack' => [
         'notifications' => [
@@ -35,4 +57,37 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stripe Payment Gateway
+    |--------------------------------------------------------------------------
+    */
+
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Made Exclusif AI Assistant
+    |--------------------------------------------------------------------------
+    |
+    | Laravel communicates with the Python FastAPI service.
+    | FastAPI communicates with Ollama using the Llama 3.2 model.
+    |
+    | Laravel: 127.0.0.1:8000
+    | Python FastAPI: 127.0.0.1:8000
+    | Ollama: 127.0.0.1:11434
+    |
+    */
+
+    'made_exclusif_ai' => [
+        'url' => env(
+            'MADE_EXCLUSIF_AI_URL',
+            'http://127.0.0.1:8001'
+        ),
+    ],
+
 ];
+

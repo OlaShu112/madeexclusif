@@ -4,15 +4,29 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class Category extends Model
 {
-    protected $fillable = ['name', 'slug', 'description'];
+    protected $fillable = [
+        'business_category_id',
+        'name',
+        'slug',
+        'description',
+        'type',
+    ];
 
     protected static function booted(): void
     {
-        static::creating(fn ($m) => $m->slug ??= Str::slug($m->name));
+        static::creating(function (Category $category) {
+            $category->slug ??= Str::slug($category->name);
+        });
+    }
+
+    public function businessCategory(): BelongsTo
+    {
+        return $this->belongsTo(BusinessCategory::class);
     }
 
     public function products(): HasMany
