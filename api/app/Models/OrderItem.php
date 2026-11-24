@@ -7,28 +7,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
-    /**
-     * The attributes that are mass assignable.
-     *
-     * These fields are used when creating order items
-     * during the checkout process.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Mass Assignable Attributes
+    |--------------------------------------------------------------------------
+    */
+
     protected $fillable = [
         'order_id',
         'product_variant_id',
         'name',
         'size_ml',
+        'variant_label',
         'unit_price',
         'quantity',
         'line_total',
     ];
 
-    /**
-     * Attribute type casting.
-     *
-     * Monetary values are represented with
-     * two decimal places.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Attribute Casting
+    |--------------------------------------------------------------------------
+    */
+
     protected $casts = [
         'order_id' => 'integer',
         'product_variant_id' => 'integer',
@@ -38,25 +39,41 @@ class OrderItem extends Model
         'line_total' => 'decimal:2',
     ];
 
-    /**
-     * An order item belongs to an order.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Database Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
-    /**
-     * An order item belongs to a product variant.
-     *
-     * Example:
-     * Nuit de Oud - 50ml
-     */
     public function productVariant(): BelongsTo
     {
         return $this->belongsTo(
             ProductVariant::class,
             'product_variant_id'
         );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Product Variant Display
+    |--------------------------------------------------------------------------
+    */
+
+    public function getDisplayVariantAttribute(): ?string
+    {
+        if ($this->variant_label) {
+            return $this->variant_label;
+        }
+
+        if ($this->size_ml) {
+            return $this->size_ml . 'ml';
+        }
+
+        return null;
     }
 }

@@ -5,68 +5,112 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Store;
+use App\Services\OrderFulfilmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class SellerOrderController extends Controller
 {
-    /**
-     * GET /api/seller/orders
-     *
-     * List orders belonging to the authenticated seller's store.
-     */
-    public function index(Request $request): JsonResponse
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | List Seller Orders
+    |--------------------------------------------------------------------------
+    */
+
+    public function index(
+        Request $request
+    ): JsonResponse {
+
         $store = $this->currentStore($request);
 
+        $data = $request->validate([
+
+            'status' => [
+                'nullable',
+                Rule::in(Order::STATUSES),
+            ],
+
+            'per_page' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:100',
+            ],
+        ]);
+
         $orders = Order::query()
+
             ->where('store_id', $store->id)
+
             ->with('items')
+
+            ->when(
+                $data['status'] ?? null,
+                fn ($query, $status) =>
+                    $query->where('status', $status)
+            )
+
             ->latest('id')
-            ->paginate(30);
+
+            ->paginate(
+                $data['per_page'] ?? 30
+            );
 
         return response()->json($orders);
     }
 
-    /**
-     * GET /api/seller/orders/{order}
-     *
-     * View a single order belonging to the seller.
-     */
-    public function show(Request $request, Order $order): JsonResponse
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | View Seller Order
+    |--------------------------------------------------------------------------
+    */
+
+    public function show(
+        Request $request,
+        Order $order
+    ): JsonResponse {
+
         $store = $this->currentStore($request);
 
         abort_unless(
-            (int) $order->store_id === (int) $store->id,
+
+            (int) $order->store_id ===
+            (int) $store->id,
+
             404
         );
 
         return response()->json(
+
             $order->load('items')
         );
     }
 
-    /**
-     * PATCH /api/seller/orders/{order}
-     *
-     * Update fulfilment status for a paid order.
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Update Seller Order
+    |--------------------------------------------------------------------------
+    */
+
     public function update(
         Request $request,
-        Order $order
+        Order $order,
+        OrderFulfilmentService $fulfilment
     ): JsonResponse {
+
         $store = $this->currentStore($request);
 
         abort_unless(
-            (int) $order->store_id === (int) $store->id,
+
+            (int) $order->store_id ===
+            (int) $store->id,
+
             404
         );
 
         $data = $request->validate([
+
             'status' => [
                 'required',
                 Rule::in([
@@ -81,79 +125,73 @@ class SellerOrderController extends Controller
                 'string',
                 'max:100',
             ],
+
+            'payment_status' => [
+                'prohibited',
+            ],
         ]);
 
-        $order = DB::transaction(function () use (
-            $order,
-            $store,
-            $data
-        ) {
-            $lockedOrder = Order::query()
-                ->whereKey($order->id)
-                ->where('store_id', $store->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        abort_if(
+            $request->exists('payment_status'),
+            422,
+            'Payment status cannot be changed by a seller.'
+        );
 
-            if ($lockedOrder->payment_status !== 'paid') {
-                throw ValidationException::withMessages([
-                    'status' => 'Only paid orders can be fulfilled.',
-                ]);
-            }
+        $updatedOrder = $fulfilment->update(
 
-            $allowedTransitions = [
-                'pending' => ['processing'],
-                'paid' => ['processing'],
-                'processing' => ['shipped'],
-                'shipped' => ['delivered'],
-                'delivered' => [],
-                'cancelled' => [],
-                'refunded' => [],
-            ];
+            order: $order,
 
-            $currentStatus = $lockedOrder->status;
-            $newStatus = $data['status'];
+            newStatus: $data['status'],
 
-            if ($currentStatus !== $newStatus) {
-                $allowed = $allowedTransitions[$currentStatus] ?? [];
+            trackingNumber:
+                $data['tracking_number'] ?? null,
 
-                if (! in_array($newStatus, $allowed, true)) {
-                    throw ValidationException::withMessages([
-                        'status' => "Cannot change order status from {$currentStatus} to {$newStatus}.",
-                    ]);
-                }
-            }
-
-            $attributes = [
-                'status' => $newStatus,
-            ];
-
-            if (array_key_exists('tracking_number', $data)) {
-                $attributes['tracking_number'] = $data['tracking_number'];
-            }
-
-            $lockedOrder->update($attributes);
-
-            return $lockedOrder;
-        });
+            storeId:
+                $store->id
+        );
 
         return response()->json([
-            'message' => 'Order updated successfully.',
-            'order' => $order->load('items'),
+
+            'message' =>
+                'Order updated successfully.',
+
+            'order' =>
+                $updatedOrder,
         ]);
     }
 
-    /**
-     * Retrieve the store provided by seller middleware.
-     */
-    private function currentStore(Request $request): Store
-    {
-        $store = $request->attributes->get('store');
+    /*
+    |--------------------------------------------------------------------------
+    | Resolve Authenticated Seller Store
+    |--------------------------------------------------------------------------
+    */
 
-        abort_unless($store instanceof Store, 403);
+    private function currentStore(
+        Request $request
+    ): Store {
 
-        abort_unless($store->status === 'active', 403);
+        $store = $request->attributes->get(
+            'store'
+        );
+
+        abort_unless(
+            $store instanceof Store,
+            403
+        );
+
+        abort_unless(
+            $store->status === 'active',
+            403
+        );
+
+        abort_unless(
+
+            (int) $store->user_id ===
+            (int) $request->user()->id,
+
+            403
+        );
 
         return $store;
     }
 }
-

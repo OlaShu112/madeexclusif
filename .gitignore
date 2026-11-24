@@ -106,3 +106,47 @@ Desktop.ini
 coverage/
 .phpunit.result.cache
 .phpunit.cache/
+
+# Environment and credentials
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build and cache
+dist/
+.vite/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Database and backups
+*.sql
+*.sqlite
+*.sqlite3
+backups/
+
+# Private keys
+*.pem
+*.key
+
+# Laravel storage
+api/storage/logs/*.log
+api/storage/app/private/
+api/storage/app/public/
+api/public/storage
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/

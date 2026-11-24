@@ -1,47 +1,116 @@
 <?php
 
-use App\Http\Controllers\BusinessCategoryController;
 use App\Http\Controllers\Admin\BrandCategoryAdminController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\EmailAdminController;
 use App\Http\Controllers\Admin\OrderAdminController;
 use App\Http\Controllers\Admin\ProductAdminController;
+use App\Http\Controllers\Admin\RefundAdminController;
 use App\Http\Controllers\Admin\StoreAdminController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\CatalogController;
-use App\Http\Controllers\CouponController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\Admin\AnalyticsAdminController;
+use App\Http\Controllers\Seller\SellerFinanceController;
+
 use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
+
+use App\Http\Controllers\AiChatController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BusinessCategoryController;
+use App\Http\Controllers\CatalogController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\EmailVerificationController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\WishlistController;
+
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AiChatController;
+
 /*
 |--------------------------------------------------------------------------
 | Public Routes
 |--------------------------------------------------------------------------
+|
+| These routes are accessible without authentication.
+|
 */
-// Made Exclusif AI Chatbot
-// Customers can ask questions without logging in.
-Route::post('/ai/chat', [AiChatController::class, 'chat'])
+
+/*
+|--------------------------------------------------------------------------
+| Made Exclusif AI Chatbot
+|--------------------------------------------------------------------------
+|
+| Customers can interact with the AI assistant without
+| logging into their accounts.
+|
+*/
+
+Route::post(
+    '/ai/chat',
+    [AiChatController::class, 'chat']
+)
     ->middleware('throttle:20,1');
 
-// Product Catalogue
-Route::get('/products', [CatalogController::class, 'index']);
+/*
+|--------------------------------------------------------------------------
+| Product Catalogue
+|--------------------------------------------------------------------------
+*/
 
-Route::get('/products/{slug}', [CatalogController::class, 'show']);
+Route::get(
+    '/products',
+    [CatalogController::class, 'index']
+);
 
-Route::get('/filters', [CatalogController::class, 'filters']);
+Route::get(
+    '/products/{slug}',
+    [CatalogController::class, 'show']
+);
 
-// Business Categories
-Route::get('/business-categories', [BusinessCategoryController::class, 'index']);
+Route::get(
+    '/filters',
+    [CatalogController::class, 'filters']
+);
 
-Route::get('/business-categories/{slug}', [BusinessCategoryController::class, 'show']);
-Route::get('/stores/{slug}', [StoreController::class, 'show']);
+/*
+|--------------------------------------------------------------------------
+| Business Categories
+|--------------------------------------------------------------------------
+*/
 
-Route::post('/coupons/check', [CouponController::class, 'check'])
+Route::get(
+    '/business-categories',
+    [BusinessCategoryController::class, 'index']
+);
+
+Route::get(
+    '/business-categories/{slug}',
+    [BusinessCategoryController::class, 'show']
+);
+
+/*
+|--------------------------------------------------------------------------
+| Public Storefront
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/stores/{slug}',
+    [StoreController::class, 'show']
+);
+
+/*
+|--------------------------------------------------------------------------
+| Coupons
+|--------------------------------------------------------------------------
+*/
+
+Route::post(
+    '/coupons/check',
+    [CouponController::class, 'check']
+)
     ->middleware('throttle:20,1');
 
 /*
@@ -50,48 +119,165 @@ Route::post('/coupons/check', [CouponController::class, 'check'])
 |--------------------------------------------------------------------------
 */
 
-Route::post('/register', [AuthController::class, 'register'])
+Route::post(
+    '/register',
+    [AuthController::class, 'register']
+)
     ->middleware('throttle:10,1');
 
-Route::post('/login', [AuthController::class, 'login'])
+Route::post(
+    '/login',
+    [AuthController::class, 'login']
+)
     ->middleware('throttle:10,1');
+
+/*
+|--------------------------------------------------------------------------
+| Password Recovery
+|--------------------------------------------------------------------------
+|
+| Customers, sellers and administrators can request
+| a password reset link and securely reset their
+| passwords without logging into their accounts.
+|
+*/
+
+Route::post(
+    '/forgot-password',
+    [PasswordResetController::class, 'forgotPassword']
+)
+    ->middleware('throttle:5,1')
+    ->name('password.email');
+
+Route::post(
+    '/reset-password',
+    [PasswordResetController::class, 'resetPassword']
+)
+    ->middleware('throttle:5,1')
+    ->name('password.update');
+
+/*
+|--------------------------------------------------------------------------
+| Email Verification
+|--------------------------------------------------------------------------
+|
+| Customers can verify their email addresses using
+| secure, signed and time-limited verification links.
+|
+*/
+
+Route::get(
+    '/email/verify/{id}/{hash}',
+    [EmailVerificationController::class, 'verify']
+)
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 /*
 |--------------------------------------------------------------------------
 | Checkout and Payments
 |--------------------------------------------------------------------------
+|
+| Supports guest checkout and authenticated customers.
+| Stripe webhook authenticity is verified inside
+| StripeWebhookController.
+|
 */
 
-Route::post('/orders', [OrderController::class, 'store'])
+Route::post(
+    '/orders',
+    [OrderController::class, 'store']
+)
     ->middleware('throttle:20,1');
 
-Route::get('/checkout/confirm', [OrderController::class, 'confirm'])
+Route::get(
+    '/checkout/confirm',
+    [OrderController::class, 'confirm']
+)
     ->middleware('throttle:60,1');
 
-Route::post('/stripe/webhook', StripeWebhookController::class);
+Route::post(
+    '/stripe/webhook',
+    StripeWebhookController::class
+);
 
 /*
 |--------------------------------------------------------------------------
 | Authenticated Customer Routes
 |--------------------------------------------------------------------------
+|
+| Requires a valid Laravel Sanctum authentication token.
+|
 */
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::get('/me', [AuthController::class, 'me']);
+    /*
+    |--------------------------------------------------------------------------
+    | Customer Account
+    |--------------------------------------------------------------------------
+    */
 
-    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get(
+        '/me',
+        [AuthController::class, 'me']
+    );
 
-    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post(
+        '/logout',
+        [AuthController::class, 'logout']
+    );
 
-    Route::get('/orders/{number}', [OrderController::class, 'show']);
+    /*
+    |--------------------------------------------------------------------------
+    | Resend Email Verification
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post(
+        '/email/verification-notification',
+        [EmailVerificationController::class, 'resend']
+    )
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Customer Orders
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/orders',
+        [OrderController::class, 'index']
+    );
+
+    Route::get(
+        '/orders/{number}',
+        [OrderController::class, 'show']
+    );
+
+    /*
+    |--------------------------------------------------------------------------
+    | Product Reviews
+    |--------------------------------------------------------------------------
+    */
 
     Route::post(
         '/products/{slug}/reviews',
         [ReviewController::class, 'store']
     );
 
-    Route::get('/wishlist', [WishlistController::class, 'index']);
+    /*
+    |--------------------------------------------------------------------------
+    | Customer Wishlist
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get(
+        '/wishlist',
+        [WishlistController::class, 'index']
+    );
 
     Route::post(
         '/wishlist/{productId}',
@@ -99,13 +285,25 @@ Route::middleware('auth:sanctum')->group(function () {
     );
 
     /*
-    | Store Registration
+    |--------------------------------------------------------------------------
+    | Business Registration and Store Applications
+    |--------------------------------------------------------------------------
+    |
+    | Authenticated customers can apply to become
+    | sellers and monitor their application status.
+    |
     */
 
-    Route::post('/stores', [StoreController::class, 'open'])
+    Route::post(
+        '/stores',
+        [StoreController::class, 'open']
+    )
         ->middleware('throttle:5,1');
 
-    Route::get('/my-store', [StoreController::class, 'mine']);
+    Route::get(
+        '/my-store',
+        [StoreController::class, 'mine']
+    );
 });
 
 /*
@@ -114,6 +312,8 @@ Route::middleware('auth:sanctum')->group(function () {
 |--------------------------------------------------------------------------
 |
 | Requires authentication and an approved seller store.
+| Seller controllers must restrict access to resources
+| belonging to the authenticated seller's store.
 |
 */
 
@@ -122,13 +322,20 @@ Route::prefix('seller')
     ->group(function () {
 
         /*
-        | Store Management
+        |--------------------------------------------------------------------------
+        | Seller Store Management
+        |--------------------------------------------------------------------------
         */
 
-        Route::put('/store', [StoreController::class, 'update']);
+        Route::put(
+            '/store',
+            [StoreController::class, 'update']
+        );
 
         /*
-        | Product Management
+        |--------------------------------------------------------------------------
+        | Seller Product Management
+        |--------------------------------------------------------------------------
         */
 
         Route::get(
@@ -152,7 +359,9 @@ Route::prefix('seller')
         );
 
         /*
-        | Seller Orders
+        |--------------------------------------------------------------------------
+        | Seller Order Management
+        |--------------------------------------------------------------------------
         */
 
         Route::get(
@@ -169,6 +378,23 @@ Route::prefix('seller')
             '/orders/{order}',
             [SellerOrderController::class, 'update']
         );
+
+	// Seller Financial Management
+
+       Route::get(
+            '/finance',
+       [SellerFinanceController::class, 'show']
+	);
+
+       Route::get(
+          '/finance/transactions',
+          [SellerFinanceController::class, 'transactions']
+        );
+
+       Route::get(
+        '/finance/payouts',
+         [SellerFinanceController::class, 'payouts']
+        );
     });
 
 /*
@@ -176,7 +402,8 @@ Route::prefix('seller')
 | Administrator Routes
 |--------------------------------------------------------------------------
 |
-| Requires authentication and platform administrator privileges.
+| Requires authentication and platform administrator
+| privileges.
 |
 */
 
@@ -185,16 +412,24 @@ Route::prefix('admin')
     ->group(function () {
 
         /*
-        | Dashboard
+        |--------------------------------------------------------------------------
+        | Administrator Dashboard
+        |--------------------------------------------------------------------------
         */
 
         Route::get(
             '/dashboard',
             [DashboardController::class, 'index']
         );
+	    Route::get('/analytics', [
+            AnalyticsAdminController::class,
+            'index'
+        ]);
 
         /*
-        | Product Management
+        |--------------------------------------------------------------------------
+        | Administrator Product Management
+        |--------------------------------------------------------------------------
         */
 
         Route::get(
@@ -218,7 +453,9 @@ Route::prefix('admin')
         );
 
         /*
-        | Brand and Category Management
+        |--------------------------------------------------------------------------
+        | Brand Management
+        |--------------------------------------------------------------------------
         */
 
         Route::get(
@@ -231,6 +468,12 @@ Route::prefix('admin')
             [BrandCategoryAdminController::class, 'storeBrand']
         );
 
+        /*
+        |--------------------------------------------------------------------------
+        | Category Management
+        |--------------------------------------------------------------------------
+        */
+
         Route::get(
             '/categories',
             [BrandCategoryAdminController::class, 'categories']
@@ -242,7 +485,9 @@ Route::prefix('admin')
         );
 
         /*
-        | Order Management
+        |--------------------------------------------------------------------------
+        | Administrator Order Management
+        |--------------------------------------------------------------------------
         */
 
         Route::get(
@@ -261,7 +506,14 @@ Route::prefix('admin')
         );
 
         /*
-        | Seller Store Management
+        |--------------------------------------------------------------------------
+        | Seller Store and Application Management
+        |--------------------------------------------------------------------------
+        |
+        | Administrators can review business applications,
+        | approve or reject stores, suspend active stores,
+        | reactivate suspended stores and reopen applications.
+        |
         */
 
         Route::get(
@@ -278,5 +530,55 @@ Route::prefix('admin')
             '/stores/{store}',
             [StoreAdminController::class, 'update']
         );
-    });
 
+        /*
+        |--------------------------------------------------------------------------
+        | Transactional Email Management
+        |--------------------------------------------------------------------------
+        |
+        | Administrators can monitor transactional email
+        | records, processing statuses and email statistics.
+        |
+        */
+
+        Route::get(
+            '/emails/statistics',
+            [EmailAdminController::class, 'statistics']
+        );
+
+        Route::get(
+            '/emails',
+            [EmailAdminController::class, 'index']
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Refund Management
+        |--------------------------------------------------------------------------
+        |
+        | Administrators can review refund records,
+        | inspect individual refunds and initiate
+        | authorised order refund requests.
+        |
+        | Refund eligibility, payment verification,
+        | duplicate prevention and financial safeguards
+        | must be enforced by the refund service.
+        |
+        */
+
+        Route::get(
+            '/refunds',
+            [RefundAdminController::class, 'index']
+        );
+
+        Route::get(
+            '/refunds/{refund}',
+            [RefundAdminController::class, 'show']
+        );
+
+        Route::post(
+            '/orders/{order}/refunds',
+            [RefundAdminController::class, 'store']
+        )
+            ->middleware('throttle:10,1');
+    });

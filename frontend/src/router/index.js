@@ -12,12 +12,17 @@ import { useAuthStore } from '@/stores/auth'
  * - Main perfume storefront
  * - Independent seller storefronts
  * - Customer accounts and checkout
+ * - Password recovery
  * - Seller dashboard
- * - Administrator dashboard
+ * - Dedicated administration portal
+ * - Administrator analytics
+ * - Administrator business management
  */
 
 const routes = [
+
   // Main storefront
+
   {
     path: '/',
     name: 'home',
@@ -36,6 +41,7 @@ const routes = [
   },
 
   // Independent seller storefronts
+
   {
     path: '/s/:store',
     name: 'store-home',
@@ -56,6 +62,7 @@ const routes = [
   },
 
   // Shopping cart and checkout
+
   {
     path: '/cart',
     name: 'cart',
@@ -73,6 +80,7 @@ const routes = [
   },
 
   // Authentication
+
   {
     path: '/login',
     name: 'login',
@@ -90,7 +98,21 @@ const routes = [
     },
   },
 
+  // Password recovery
+
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/ForgotPasswordView.vue'),
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('@/views/ResetPasswordView.vue'),
+  },
+
   // Customer account
+
   {
     path: '/account',
     name: 'account',
@@ -101,6 +123,7 @@ const routes = [
   },
 
   // Seller registration
+
   {
     path: '/open-store',
     name: 'open-store',
@@ -111,6 +134,7 @@ const routes = [
   },
 
   // Seller dashboard
+
   {
     path: '/seller',
     name: 'seller',
@@ -120,27 +144,60 @@ const routes = [
     },
   },
 
-  // Administration
+  // Administration Portal
+
   {
     path: '/admin',
-    name: 'admin',
-    component: () => import('@/views/AdminView.vue'),
+
+    component: () => import('@/layouts/AdminLayout.vue'),
+
     meta: {
       auth: true,
       admin: true,
+      layout: 'admin',
     },
-  },
-  {
-    path: '/admin/stores',
-    name: 'admin-stores',
-    component: () => import('@/views/AdminStoresView.vue'),
-    meta: {
-      auth: true,
-      admin: true,
-    },
+
+    children: [
+
+      // Administrator analytics dashboard
+
+      {
+        path: '',
+        name: 'admin',
+        component: () =>
+          import('@/views/AdminAnalyticsView.vue'),
+      },
+
+      // Analytics redirect
+
+      {
+        path: 'analytics',
+        name: 'admin-analytics',
+        redirect: '/admin',
+      },
+
+      // Administrator platform management
+
+      {
+        path: 'manage',
+        name: 'admin-manage',
+        component: () =>
+          import('@/views/AdminView.vue'),
+      },
+
+      // Administrator store management
+
+      {
+        path: 'stores',
+        name: 'admin-stores',
+        component: () =>
+          import('@/views/AdminStoresView.vue'),
+      },
+    ],
   },
 
   // Unknown pages
+
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
@@ -148,12 +205,18 @@ const routes = [
   },
 ]
 
+/**
+ * Router configuration.
+ */
+
 const router = createRouter({
+
   history: createWebHistory(),
 
   routes,
 
   scrollBehavior(to, from, savedPosition) {
+
     if (savedPosition) {
       return savedPosition
     }
@@ -177,11 +240,15 @@ const router = createRouter({
  * Authentication and role permissions are also
  * enforced by the Laravel backend.
  */
+
 router.beforeEach((to) => {
+
   const auth = useAuthStore()
 
   // Authentication required
+
   if (to.meta.auth && !auth.user) {
+
     return {
       name: 'login',
       query: {
@@ -191,17 +258,22 @@ router.beforeEach((to) => {
   }
 
   // Administrator-only pages
+
   if (to.meta.admin && !auth.isAdmin) {
+
     return {
       name: 'home',
     }
   }
 
   // Authenticated users should not see login/register
+
   if (to.meta.guestOnly && auth.user) {
+
     const redirect = to.query.redirect
 
     // Only allow safe internal redirects.
+
     if (
       typeof redirect === 'string' &&
       redirect.startsWith('/') &&
@@ -220,4 +292,3 @@ router.beforeEach((to) => {
 })
 
 export default router
-

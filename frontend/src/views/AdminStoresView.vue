@@ -1,13 +1,7 @@
+
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { api } from '@/api/http'
-
-/**
- * Made Exclusif - Admin Store Management
- *
- * Store approval and suspension are controlled
- * by the Laravel backend.
- */
 
 const stores = ref([])
 const loading = ref(true)
@@ -18,63 +12,91 @@ const selectedStore = ref(null)
 const search = ref('')
 const statusFilter = ref('all')
 
-const statusOptions = ['pending', 'active', 'suspended']
+const page = ref(1)
+const lastPage = ref(1)
+const total = ref(0)
+
+const statusOptions = [
+  'pending',
+  'active',
+  'suspended',
+  'rejected'
+]
+
+const transitions = {
+  pending: ['active', 'rejected'],
+  active: ['suspended'],
+  suspended: ['active'],
+  rejected: ['pending']
+}
 
 const filteredStores = computed(() => {
   const term = search.value.trim().toLowerCase()
 
-  return stores.value.filter((store) => {
+  return stores.value.filter(store => {
     const matchesStatus =
       statusFilter.value === 'all' ||
       store.status === statusFilter.value
 
-    const matchesSearch =
-      !term ||
-      String(store.name || '').toLowerCase().includes(term) ||
-      String(store.slug || '').toLowerCase().includes(term) ||
-      String(store.owner?.name || '').toLowerCase().includes(term) ||
-      String(store.owner?.email || '').toLowerCase().includes(term)
+    const matchesSearch = [
+      store.name,
+      store.slug,
+      store.owner?.name,
+      store.owner?.email,
+      store.business_category?.name,
+      store.type
+    ].some(value =>
+      String(value || '').toLowerCase().includes(term)
+    )
 
-    return matchesStatus && matchesSearch
+    return matchesStatus && (!term || matchesSearch)
   })
 })
 
-const pendingCount = computed(() =>
-  stores.value.filter((store) => store.status === 'pending').length
-)
-
-const activeCount = computed(() =>
-  stores.value.filter((store) => store.status === 'active').length
-)
-
-const suspendedCount = computed(() =>
-  stores.value.filter((store) => store.status === 'suspended').length
-)
-
-function unwrapList(response) {
-  if (Array.isArray(response)) return response
-  if (Array.isArray(response?.data)) return response.data
-  return []
+function countStatus(status) {
+  return stores.value.filter(
+    store => store.status === status
+  ).length
 }
 
 function getErrorMessage(err) {
-  return (
-    err?.data?.message ||
-    err?.response?.data?.message ||
-    err?.message ||
+  return err?.message ||
     'Something went wrong. Please try again.'
-  )
 }
 
-async function loadStores() {
+function formatDate(value) {
+  if (!value) return 'Not recorded'
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime())
+    ? 'Not recorded'
+    : date.toLocaleString('en-GB')
+}
+
+async function loadStores(targetPage = 1) {
   loading.value = true
   error.value = ''
-  success.value = ''
 
   try {
-    const response = await api('/admin/stores')
+    const response = await api('/admin/stores', {
+      params: {
+        page: targetPage,
+        per_page: 30,
+        status: statusFilter.value === 'all'
+          ? ''
+          : statusFilter.value
+      }
+    })
 
-    stores.value = unwrapList(response)
+    stores.value = Array.isArray(response)
+      ? response
+      : response.data || []
+
+    page.value = response.current_page || 1
+    lastPage.value = response.last_page || 1
+    total.value = response.total ?? stores.value.length
+
   } catch (err) {
     error.value = getErrorMessage(err)
   } finally {
@@ -87,68 +109,111 @@ async function viewStore(store) {
   error.value = ''
 
   try {
-    const response = await api(`/admin/stores/${store.id}`)
+    const response = await api(
+      `/admin/stores/${store.id}`
+    )
 
-    selectedStore.value = response?.store ?? response
+    if (selectedStore.value?.id === store.id) {
+      selectedStore.value = response?.store ?? response
+    }
+
   } catch (err) {
     error.value = getErrorMessage(err)
   }
 }
 
+function actionLabel(store, status) {
+  if (status === 'active') {
+    return store.status === 'suspended'
+      ? 'Reactivate'
+      : 'Approve'
+  }
+
+  if (status === 'rejected') return 'Reject'
+  if (status === 'suspended') return 'Suspend'
+  if (status === 'pending') return 'Reopen'
+
+  return status
+}
+
 async function updateStatus(store, status) {
   if (savingId.value !== null) return
 
-  if (store.is_main) {
-    error.value = 'The main Made Exclusif store cannot be modified here.'
-    return
-  }
-
-  if (!statusOptions.includes(status)) return
-
-  const action =
-    status === 'active'
-      ? 'activate'
-      : status === 'suspended'
-        ? 'suspend'
-        : 'set to pending'
-
-  if (
-    !window.confirm(
-      `Are you sure you want to ${action} "${store.name}"?`
-    )
-  ) {
-    return
-  }
-
-  savingId.value = store.id
   error.value = ''
   success.value = ''
 
+  if (store.is_main) {
+    error.value =
+      'The main Made Exclusif store cannot be modified here.'
+    return
+  }
+
+  if (!transitions[store.status]?.includes(status)) {
+    error.value = 'Invalid store status transition.'
+    return
+  }
+
+  const action = actionLabel(store, status)
+  let reason = null
+
+  if (['rejected', 'suspended'].includes(status)) {
+    reason = window.prompt(
+      `Enter the reason to ${action.toLowerCase()} "${store.name}". This reason will be visible to the business owner.`
+    )
+
+    if (reason === null) return
+
+    reason = reason.trim()
+
+    if (!reason || reason.length > 2000) {
+      error.value =
+        'Please provide a reason between 1 and 2000 characters.'
+      return
+    }
+  }
+
+  if (!window.confirm(
+    `Are you sure you want to ${action.toLowerCase()} "${store.name}"?`
+  )) return
+
+  savingId.value = store.id
+
   try {
-    const response = await api(`/admin/stores/${store.id}`, {
-      method: 'PATCH',
-      body: {
-        status: status,
-      },
-    })
+    const response = await api(
+      `/admin/stores/${store.id}`,
+      {
+        method: 'PATCH',
+        body: {
+          status,
+          ...(reason ? { reason } : {})
+        }
+      }
+    )
 
     const updated = response?.store ?? response
 
-    stores.value = stores.value.map((item) =>
+    stores.value = stores.value.map(item =>
       item.id === store.id
-        ? { ...item, ...updated, status }
+        ? { ...item, ...updated }
         : item
     )
 
     if (selectedStore.value?.id === store.id) {
       selectedStore.value = {
         ...selectedStore.value,
-        ...updated,
-        status,
+        ...updated
       }
     }
 
-    success.value = `"${store.name}" has been updated successfully.`
+    success.value = response?.message ||
+      `"${store.name}" has been updated successfully.`
+
+    await loadStores(page.value)
+
+    if (page.value > lastPage.value) {
+      await loadStores(lastPage.value)
+    }
+
   } catch (err) {
     error.value = getErrorMessage(err)
   } finally {
@@ -156,23 +221,30 @@ async function updateStatus(store, status) {
   }
 }
 
-onMounted(loadStores)
+onMounted(() => loadStores())
 </script>
 
 <template>
   <main class="container admin-stores">
+
     <div class="page-heading">
       <div>
-        <p class="eyebrow">Made Exclusif Administration</p>
+        <p class="eyebrow">
+          Made Exclusif Administration
+        </p>
+
         <h1>Store Management</h1>
-        <p>Review and manage independent seller storefronts.</p>
+
+        <p>
+          Review business applications and manage
+          independent seller storefronts.
+        </p>
       </div>
 
       <button
         type="button"
-        class="refresh-button"
-        :disabled="loading"
-        @click="loadStores"
+        :disabled="loading || savingId !== null"
+        @click="loadStores(page)"
       >
         {{ loading ? 'Loading...' : 'Refresh' }}
       </button>
@@ -180,23 +252,17 @@ onMounted(loadStores)
 
     <div class="stats">
       <div class="stat">
-        <span>Total loaded</span>
-        <strong>{{ stores.length }}</strong>
+        <span>Total matching stores</span>
+        <strong>{{ total }}</strong>
       </div>
 
-      <div class="stat">
-        <span>Pending</span>
-        <strong>{{ pendingCount }}</strong>
-      </div>
-
-      <div class="stat">
-        <span>Active</span>
-        <strong>{{ activeCount }}</strong>
-      </div>
-
-      <div class="stat">
-        <span>Suspended</span>
-        <strong>{{ suspendedCount }}</strong>
+      <div
+        v-for="status in statusOptions"
+        :key="status"
+        class="stat"
+      >
+        <span>{{ status }} (this page)</span>
+        <strong>{{ countStatus(status) }}</strong>
       </div>
     </div>
 
@@ -209,34 +275,47 @@ onMounted(loadStores)
     </p>
 
     <section class="management-panel">
+
       <div class="filters">
         <input
           v-model="search"
           type="search"
-          placeholder="Search stores or owners"
-          aria-label="Search stores"
+          placeholder="Search this page"
+          aria-label="Search stores on this page"
         />
 
         <select
           v-model="statusFilter"
           aria-label="Filter by store status"
+          :disabled="loading || savingId !== null"
+          @change="loadStores(1)"
         >
           <option value="all">All statuses</option>
-          <option value="pending">Pending</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
+
+          <option
+            v-for="status in statusOptions"
+            :key="status"
+            :value="status"
+          >
+            {{ status }}
+          </option>
         </select>
       </div>
 
-      <p v-if="loading">Loading stores...</p>
+      <p v-if="loading" role="status">
+        Loading stores...
+      </p>
 
-      <div v-else-if="filteredStores.length" class="table-wrap">
+      <div
+        v-else-if="filteredStores.length"
+        class="table-wrap"
+      >
         <table>
           <thead>
             <tr>
               <th>Store</th>
               <th>Owner</th>
-              <th>Type</th>
+              <th>Category</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -250,15 +329,24 @@ onMounted(loadStores)
               <td>
                 <strong>{{ store.name }}</strong>
                 <small>{{ store.slug }}</small>
+                <small v-if="store.is_main">
+                  Main marketplace store
+                </small>
               </td>
 
               <td>
                 {{ store.owner?.name || '—' }}
-                <small>{{ store.owner?.email || '' }}</small>
+                <small>
+                  {{ store.owner?.email || '' }}
+                </small>
               </td>
 
-              <td class="capitalize">
-                {{ store.type || '—' }}
+              <td>
+                {{
+                  store.business_category?.name ||
+                  store.type ||
+                  '—'
+                }}
               </td>
 
               <td>
@@ -274,6 +362,7 @@ onMounted(loadStores)
                 <div class="actions">
                   <button
                     type="button"
+                    :disabled="savingId !== null"
                     @click="viewStore(store)"
                   >
                     Details
@@ -281,21 +370,20 @@ onMounted(loadStores)
 
                   <template v-if="!store.is_main">
                     <button
-                      v-if="store.status !== 'active'"
+                      v-for="status in transitions[store.status] || []"
+                      :key="status"
                       type="button"
+                      :class="{
+                        danger: ['rejected', 'suspended'].includes(status)
+                      }"
                       :disabled="savingId !== null"
-                      @click="updateStatus(store, 'active')"
+                      @click="updateStatus(store, status)"
                     >
-                      Approve
-                    </button>
-
-                    <button
-                      v-if="store.status === 'active'"
-                      type="button"
-                      :disabled="savingId !== null"
-                      @click="updateStatus(store, 'suspended')"
-                    >
-                      Suspend
+                      {{
+                        savingId === store.id
+                          ? 'Updating...'
+                          : actionLabel(store, status)
+                      }}
                     </button>
                   </template>
                 </div>
@@ -306,6 +394,25 @@ onMounted(loadStores)
       </div>
 
       <p v-else>No stores match your search.</p>
+
+      <div class="pagination">
+        <button
+          :disabled="page <= 1 || loading || savingId !== null"
+          @click="loadStores(page - 1)"
+        >
+          Previous
+        </button>
+
+        <span>Page {{ page }} of {{ lastPage }}</span>
+
+        <button
+          :disabled="page >= lastPage || loading || savingId !== null"
+          @click="loadStores(page + 1)"
+        >
+          Next
+        </button>
+      </div>
+
     </section>
 
     <section
@@ -321,7 +428,7 @@ onMounted(loadStores)
           aria-label="Close store details"
           @click="selectedStore = null"
         >
-          ✕
+          Close
         </button>
       </div>
 
@@ -332,8 +439,13 @@ onMounted(loadStores)
         <dt>Slug</dt>
         <dd>{{ selectedStore.slug }}</dd>
 
-        <dt>Store Type</dt>
-        <dd>{{ selectedStore.type }}</dd>
+        <dt>Business category</dt>
+        <dd>
+          {{
+            selectedStore.business_category?.name ||
+            selectedStore.type
+          }}
+        </dd>
 
         <dt>Status</dt>
         <dd>{{ selectedStore.status }}</dd>
@@ -341,11 +453,35 @@ onMounted(loadStores)
         <dt>Owner</dt>
         <dd>{{ selectedStore.owner?.name || '—' }}</dd>
 
-        <dt>Owner Email</dt>
+        <dt>Owner email</dt>
         <dd>{{ selectedStore.owner?.email || '—' }}</dd>
 
         <dt>Tagline</dt>
         <dd>{{ selectedStore.tagline || '—' }}</dd>
+
+        <dt>Application date</dt>
+        <dd>{{ formatDate(selectedStore.created_at) }}</dd>
+
+        <dt>Approval date</dt>
+        <dd>{{ formatDate(selectedStore.approved_at) }}</dd>
+
+        <dt>Rejection date</dt>
+        <dd>{{ formatDate(selectedStore.rejected_at) }}</dd>
+
+        <dt>Last rejection reason</dt>
+        <dd>{{ selectedStore.rejection_reason || '—' }}</dd>
+
+        <dt>Suspension date</dt>
+        <dd>{{ formatDate(selectedStore.suspended_at) }}</dd>
+
+        <dt>Last suspension reason</dt>
+        <dd>{{ selectedStore.suspension_reason || '—' }}</dd>
+
+        <dt>Products</dt>
+        <dd>{{ selectedStore.products_count ?? '—' }}</dd>
+
+        <dt>Orders</dt>
+        <dd>{{ selectedStore.orders_count ?? '—' }}</dd>
       </dl>
 
       <router-link
@@ -358,6 +494,7 @@ onMounted(loadStores)
       >
         View Public Store
       </router-link>
+
     </section>
   </main>
 </template>
@@ -374,10 +511,7 @@ onMounted(loadStores)
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-}
-
-.page-heading {
-  margin-bottom: 30px;
+  margin-bottom: 25px;
 }
 
 .page-heading h1 {
@@ -397,7 +531,7 @@ onMounted(loadStores)
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 30px;
 }
@@ -411,7 +545,7 @@ onMounted(loadStores)
 }
 
 .stat {
-  padding: 22px;
+  padding: 20px;
 }
 
 .stat span,
@@ -422,6 +556,7 @@ onMounted(loadStores)
 .stat span {
   color: #666;
   font-size: 13px;
+  text-transform: capitalize;
 }
 
 .stat strong {
@@ -482,15 +617,11 @@ td small {
   color: #777;
 }
 
-.capitalize,
-.status {
-  text-transform: capitalize;
-}
-
 .status {
   display: inline-block;
   padding: 6px 11px;
   border-radius: 20px;
+  text-transform: capitalize;
   background: #eee;
 }
 
@@ -504,15 +635,23 @@ td small {
   color: #176c36;
 }
 
-.status--suspended {
+.status--suspended,
+.status--rejected {
   background: #ffe7e7;
   color: #a22;
 }
 
-.actions {
+.actions,
+.pagination {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+.pagination {
+  justify-content: center;
+  margin-top: 25px;
 }
 
 button,
@@ -524,21 +663,23 @@ button,
   color: #222;
   cursor: pointer;
   font: inherit;
+  text-decoration: none;
+}
+
+button.danger {
+  color: #a22;
+  border-color: #d8a6a6;
 }
 
 button:disabled {
   opacity: 0.5;
-  cursor: wait;
-}
-
-.refresh-button,
-.store-link {
-  text-decoration: none;
+  cursor: not-allowed;
 }
 
 .alert {
   padding: 13px 16px;
   border-radius: 5px;
+  margin-bottom: 16px;
 }
 
 .error {
@@ -551,13 +692,9 @@ button:disabled {
   background: #eef8f0;
 }
 
-.details-heading {
-  margin-bottom: 20px;
-}
-
 dl {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 180px 1fr;
   gap: 14px;
   margin-bottom: 25px;
 }
@@ -568,6 +705,8 @@ dt {
 
 dd {
   margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 900px) {
@@ -577,17 +716,14 @@ dd {
 }
 
 @media (max-width: 640px) {
-  .page-heading {
-    align-items: flex-start;
+  .page-heading,
+  .filters {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .stats {
     grid-template-columns: 1fr;
-  }
-
-  .filters {
-    flex-direction: column;
   }
 
   dl {
@@ -596,4 +732,3 @@ dd {
   }
 }
 </style>
-

@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\BusinessCategory;
 use App\Models\Category;
 use App\Models\Store;
+use App\Services\StoreNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,8 +44,14 @@ class StoreController extends Controller
     /**
      * Allow an authenticated user to create a store.
      * New stores require administrator approval.
+     *
+     * Automatically register business application
+     * confirmation and administrator notifications.
      */
-    public function open(Request $request): JsonResponse
+    public function open(
+        Request $request,
+        StoreNotificationService $notifications
+    ): JsonResponse
     {
         $user = $request->user();
 
@@ -107,10 +114,12 @@ class StoreController extends Controller
             $store = DB::transaction(function () use (
                 $user,
                 $data,
-                $logoPath
+                $logoPath,
+                $notifications
             ) {
                 // Prevent simultaneous registrations
                 // by the same customer.
+
                 $lockedUser = $user->newQuery()
                     ->lockForUpdate()
                     ->findOrFail($user->id);
@@ -122,6 +131,7 @@ class StoreController extends Controller
                 }
 
                 // Retrieve the selected business category.
+
                 $businessCategory = BusinessCategory::active()
                     ->lockForUpdate()
                     ->find($data['business_category_id']);
@@ -134,12 +144,14 @@ class StoreController extends Controller
                 }
 
                 // Create the store brand.
+
                 $brand = Brand::create([
                     'name' => $data['name'],
                 ]);
 
                 // Create the seller storefront.
-                return Store::create([
+
+                $newStore = Store::create([
                     'user_id' => $user->id,
 
                     'brand_id' => $brand->id,
@@ -161,6 +173,20 @@ class StoreController extends Controller
 
                     'is_main' => false,
                 ]);
+
+                /*
+                 * Register automatic business notifications.
+                 *
+                 * 1. Business application confirmation
+                 *    to the store owner.
+                 *
+                 * 2. New business application notification
+                 *    to the marketplace administrator.
+                 */
+
+                $notifications->applicationSubmitted($newStore);
+
+                return $newStore;
             });
 
         } catch (Throwable $e) {
@@ -214,6 +240,7 @@ class StoreController extends Controller
 
         // Retrieve product categories belonging
         // to the seller's business category.
+
         $categories = Category::query()
             ->whereNotNull('business_category_id')
             ->where(

@@ -20,6 +20,7 @@ class Store extends Model
         'pending',
         'active',
         'suspended',
+        'rejected',
     ];
 
     protected $fillable = [
@@ -34,10 +35,23 @@ class Store extends Model
         'accent',
         'is_main',
         'status',
+        'approved_at',
+        'approved_by',
+        'rejected_at',
+        'rejected_by',
+        'rejection_reason',
+        'suspended_at',
+        'suspended_by',
+        'suspension_reason',
+        'status_version',
     ];
 
     protected $casts = [
         'is_main' => 'boolean',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
+        'suspended_at' => 'datetime',
+        'status_version' => 'integer',
     ];
 
     protected $appends = [
@@ -111,5 +125,54 @@ class Store extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function emailLogs(): HasMany
+    {
+        return $this->hasMany(EmailLog::class);
+    }
+
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'approved_by'
+        );
+    }
+
+    public function rejectedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'rejected_by'
+        );
+    }
+
+    public function suspendedBy(): BelongsTo
+    {
+        return $this->belongsTo(
+            User::class,
+            'suspended_by'
+        );
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
     }
 }

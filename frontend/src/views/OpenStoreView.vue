@@ -1,3 +1,4 @@
+
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -15,19 +16,14 @@ const categoryError = ref('')
 const success = ref('')
 
 const existingStore = ref(null)
-
-// Business categories retrieved from Laravel.
 const storeCategories = ref([])
 
 const form = reactive({
   name: '',
   business_category_id: '',
-  tagline: '',
+  tagline: ''
 })
 
-/**
- * Retrieve all active business categories.
- */
 async function loadBusinessCategories() {
   loadingCategories.value = true
   categoryError.value = ''
@@ -45,7 +41,7 @@ async function loadBusinessCategories() {
 
     storeCategories.value = categories
 
-    if (!storeCategories.value.length) {
+    if (!categories.length) {
       categoryError.value =
         'No business categories are currently available.'
     }
@@ -56,17 +52,11 @@ async function loadBusinessCategories() {
     categoryError.value =
       'Unable to load business categories. Please try again.'
 
-    console.error('Business category loading failed:', err)
-
   } finally {
     loadingCategories.value = false
   }
 }
 
-/**
- * Check whether the authenticated customer
- * already owns a store.
- */
 async function checkExistingStore() {
   checking.value = true
   storeCheckFailed.value = false
@@ -74,7 +64,6 @@ async function checkExistingStore() {
 
   try {
     const response = await api('/my-store')
-
     existingStore.value = response?.store ?? null
 
   } catch (err) {
@@ -83,16 +72,11 @@ async function checkExistingStore() {
     error.value =
       'Unable to check your store details. Please try again.'
 
-    console.error('Store check failed:', err)
-
   } finally {
     checking.value = false
   }
 }
 
-/**
- * Initialise the registration page.
- */
 async function initialise() {
   await checkExistingStore()
 
@@ -101,24 +85,27 @@ async function initialise() {
   }
 }
 
-/**
- * Display the business category name.
- */
 function categoryLabel(store) {
   if (!store) return 'Not specified'
 
-  return store.business_category?.name
-    || storeCategories.value.find(
-      category =>
-        Number(category.id) === Number(store.business_category_id)
-    )?.name
-    || store.type
-    || 'Not specified'
+  return store.business_category?.name ||
+    storeCategories.value.find(category =>
+      Number(category.id) === Number(store.business_category_id)
+    )?.name ||
+    store.type ||
+    'Not specified'
 }
 
-/**
- * Submit a new seller application.
- */
+function formatDate(value) {
+  if (!value) return 'Not recorded'
+
+  const date = new Date(value)
+
+  return Number.isNaN(date.getTime())
+    ? 'Not recorded'
+    : date.toLocaleDateString('en-GB')
+}
+
 async function submit() {
   if (
     loading.value ||
@@ -133,11 +120,6 @@ async function submit() {
 
   if (form.name.trim().length < 2) {
     error.value = 'Please enter a valid store name.'
-    return
-  }
-
-  if (!form.business_category_id) {
-    error.value = 'Please select your business category.'
     return
   }
 
@@ -156,16 +138,11 @@ async function submit() {
   try {
     const response = await api('/stores', {
       method: 'POST',
-
       body: {
         name: form.name.trim(),
-
-        business_category_id: Number(
-          form.business_category_id
-        ),
-
-        tagline: form.tagline.trim(),
-      },
+        business_category_id: Number(form.business_category_id),
+        tagline: form.tagline.trim()
+      }
     })
 
     if (!response?.store) {
@@ -174,22 +151,19 @@ async function submit() {
 
     existingStore.value = response.store
 
-    success.value =
-      response.message ||
+    success.value = response.message ||
       'Your store application has been submitted successfully.'
 
   } catch (err) {
-    console.error('Store registration failed:', err)
-
     const validationErrors =
       err?.response?.data?.errors || err?.errors
 
     error.value =
-      validationErrors?.name?.[0]
-      || validationErrors?.business_category_id?.[0]
-      || validationErrors?.tagline?.[0]
-      || err?.message
-      || 'Unable to submit your application.'
+      validationErrors?.name?.[0] ||
+      validationErrors?.business_category_id?.[0] ||
+      validationErrors?.tagline?.[0] ||
+      err?.message ||
+      'Unable to submit your application.'
 
   } finally {
     loading.value = false
@@ -206,23 +180,18 @@ onMounted(initialise)
       <h1>Open Your Store</h1>
 
       <p>
-        Join Made Exclusif and create your own online storefront.
-        Choose your business category and start building your
-        online business.
+        Join Made Exclusif and create your own online
+        storefront. Choose your business category
+        and start building your online business.
       </p>
     </div>
 
-    <!-- Checking existing store -->
     <p v-if="checking" role="status">
       Checking your store details...
     </p>
 
-    <!-- Store verification failed -->
     <div v-else-if="storeCheckFailed" class="notice">
-
-      <p class="error" role="alert">
-        {{ error }}
-      </p>
+      <p class="error" role="alert">{{ error }}</p>
 
       <button
         type="button"
@@ -231,26 +200,29 @@ onMounted(initialise)
       >
         Try Again
       </button>
-
     </div>
 
-    <!-- Existing store -->
     <div v-else-if="existingStore" class="notice">
 
-      <h2>Your Store</h2>
+      <h2>Your Business</h2>
 
       <p v-if="success" class="success" role="status">
         {{ success }}
       </p>
 
       <p>
-        <strong>Name:</strong>
+        <strong>Business name:</strong>
         {{ existingStore.name }}
       </p>
 
       <p>
-        <strong>Business Category:</strong>
+        <strong>Business category:</strong>
         {{ categoryLabel(existingStore) }}
+      </p>
+
+      <p>
+        <strong>Application date:</strong>
+        {{ formatDate(existingStore.created_at) }}
       </p>
 
       <p>
@@ -264,46 +236,138 @@ onMounted(initialise)
         </span>
       </p>
 
-      <p v-if="existingStore.status === 'pending'">
-        Your application is awaiting administrator approval.
-        You will be able to manage your products once your
-        store has been approved.
-      </p>
+      <div
+        v-if="existingStore.status === 'pending'"
+        class="status-panel pending-panel"
+      >
+        <h3>Application Under Review</h3>
 
-      <p v-else-if="existingStore.status === 'suspended'">
-        Your store is currently suspended.
-        Please contact the Made Exclusif support team.
-      </p>
+        <p>
+          Your business application is awaiting
+          administrator approval.
+        </p>
 
-      <p v-else-if="existingStore.status === 'active'">
-        Your store is active. You can now manage your
-        products and customer orders.
+        <p>
+          Once your application has been approved,
+          you will be able to access your seller
+          dashboard and manage your products.
+        </p>
+      </div>
+
+      <div
+        v-else-if="existingStore.status === 'active'"
+        class="status-panel active-panel"
+      >
+        <h3>Your Business Is Active</h3>
+
+        <p>
+          You can now manage your products,
+          inventory and customer orders.
+        </p>
+
+        <p v-if="existingStore.approved_at">
+          Approved on:
+          {{ formatDate(existingStore.approved_at) }}
+        </p>
+
+        <button
+          type="button"
+          class="primary-button"
+          @click="router.push({ name: 'seller' })"
+        >
+          Go to Seller Dashboard
+        </button>
+      </div>
+
+      <div
+        v-else-if="existingStore.status === 'rejected'"
+        class="status-panel restricted-panel"
+      >
+        <h3>Application Not Approved</h3>
+
+        <p>
+          Unfortunately, your business application
+          has not been approved.
+        </p>
+
+        <p v-if="existingStore.rejected_at">
+          Decision date:
+          {{ formatDate(existingStore.rejected_at) }}
+        </p>
+
+        <div class="reason">
+          <strong>Reason for rejection</strong>
+
+          <p>
+            {{
+              existingStore.rejection_reason ||
+              'Please contact support for further information.'
+            }}
+          </p>
+        </div>
+
+        <p>
+          Contact the Made Exclusif support team
+          if you would like your application
+          to be reconsidered.
+        </p>
+      </div>
+
+      <div
+        v-else-if="existingStore.status === 'suspended'"
+        class="status-panel restricted-panel"
+      >
+        <h3>Business Suspended</h3>
+
+        <p>
+          Your storefront is currently suspended
+          and seller access is restricted.
+        </p>
+
+        <p v-if="existingStore.suspended_at">
+          Suspension date:
+          {{ formatDate(existingStore.suspended_at) }}
+        </p>
+
+        <div class="reason">
+          <strong>Reason for suspension</strong>
+
+          <p>
+            {{
+              existingStore.suspension_reason ||
+              'Please contact support for further information.'
+            }}
+          </p>
+        </div>
+
+        <p>
+          Please contact Made Exclusif support
+          to discuss the next steps.
+        </p>
+      </div>
+
+      <p v-else>
+        Please contact support to confirm your
+        business application status.
       </p>
 
       <button
-        v-if="existingStore.status === 'active'"
         type="button"
-        class="primary-button"
-        @click="router.push({ name: 'seller' })"
+        class="secondary-button"
+        @click="initialise"
       >
-        Go to Seller Dashboard
+        Refresh Application Status
       </button>
 
     </div>
 
-    <!-- New store application -->
     <form
       v-else
       class="store-form"
       @submit.prevent="submit"
     >
-
-      <!-- Store name -->
       <div class="field">
-
-        <label for="store-name">
-          Store Name
-        </label>
+        <label for="store-name">Store Name</label>
 
         <input
           id="store-name"
@@ -319,12 +383,9 @@ onMounted(initialise)
         <small class="field-help">
           Choose a unique name for your business.
         </small>
-
       </div>
 
-      <!-- Dynamic business category -->
       <div class="field">
-
         <label for="store-category">
           Business Category
         </label>
@@ -339,7 +400,6 @@ onMounted(initialise)
           "
           required
         >
-
           <option value="" disabled>
             {{
               loadingCategories
@@ -355,25 +415,21 @@ onMounted(initialise)
           >
             {{ category.name }}
           </option>
-
         </select>
 
         <small class="field-help">
-          Choose the category that best describes your business.
+          Choose the category that best describes
+          your business.
         </small>
 
-        <p
-          v-if="categoryError"
-          class="error"
-          role="alert"
-        >
+        <p v-if="categoryError" class="error" role="alert">
           {{ categoryError }}
         </p>
 
         <button
           v-if="categoryError"
           type="button"
-          class="primary-button"
+          class="secondary-button"
           :disabled="loadingCategories"
           @click="loadBusinessCategories"
         >
@@ -384,15 +440,10 @@ onMounted(initialise)
           If your business category is not listed,
           please contact Made Exclusif support.
         </small>
-
       </div>
 
-      <!-- Store tagline -->
       <div class="field">
-
-        <label for="store-tagline">
-          Store Tagline
-        </label>
+        <label for="store-tagline">Store Tagline</label>
 
         <textarea
           id="store-tagline"
@@ -406,32 +457,27 @@ onMounted(initialise)
         <small class="field-help">
           {{ form.tagline.length }} / 255 characters
         </small>
-
       </div>
 
-      <!-- Approval information -->
       <div class="approval-notice">
-
-        <strong>Store Approval</strong>
+        <strong>Business Approval</strong>
 
         <p>
-          All new stores are reviewed by the Made Exclusif
-          administration team before they can begin selling
-          on the marketplace.
+          All new businesses are reviewed by the
+          Made Exclusif administration team before
+          they can begin selling on the marketplace.
         </p>
 
+        <p>
+          We will notify you by email when a decision
+          has been made regarding your application.
+        </p>
       </div>
 
-      <!-- Error message -->
-      <p
-        v-if="error"
-        class="error"
-        role="alert"
-      >
+      <p v-if="error" class="error" role="alert">
         {{ error }}
       </p>
 
-      <!-- Submit application -->
       <button
         type="submit"
         class="primary-button"
@@ -443,7 +489,6 @@ onMounted(initialise)
       >
         {{ loading ? 'Submitting...' : 'Submit Application' }}
       </button>
-
     </form>
 
   </main>
@@ -504,8 +549,8 @@ onMounted(initialise)
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
-  outline: none;
-  border-color: #222;
+  outline: 2px solid #555;
+  outline-offset: 2px;
 }
 
 .field input:disabled,
@@ -521,21 +566,27 @@ onMounted(initialise)
   line-height: 1.5;
 }
 
-.primary-button {
+.primary-button,
+.secondary-button {
   padding: 13px 24px;
-  border: 0;
+  border: 1px solid #222;
   border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.primary-button {
   background: #222;
   color: #fff;
-  cursor: pointer;
-  transition: background 0.2s ease;
 }
 
-.primary-button:hover {
-  background: #444;
+.secondary-button {
+  background: #fff;
+  color: #222;
 }
 
-.primary-button:disabled {
+.primary-button:disabled,
+.secondary-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -558,19 +609,47 @@ onMounted(initialise)
   margin-bottom: 12px;
 }
 
-.approval-notice {
-  padding: 16px;
+.approval-notice,
+.status-panel {
+  padding: 20px;
   background: #f7f7f7;
   border: 1px solid #e8e8e8;
-  border-radius: 5px;
-  margin-bottom: 22px;
+  border-radius: 6px;
+  margin: 22px 0;
 }
 
+.status-panel h3 {
+  margin-bottom: 12px;
+}
+
+.status-panel p,
 .approval-notice p {
   margin-top: 8px;
-  color: #666;
-  font-size: 14px;
   line-height: 1.6;
+}
+
+.pending-panel {
+  background: #fff8e9;
+  border-color: #e8d6ac;
+}
+
+.active-panel {
+  background: #f0f8f2;
+  border-color: #b9dfc4;
+}
+
+.restricted-panel {
+  background: #fff3f3;
+  border-color: #e9bcbc;
+}
+
+.reason {
+  background: #fff;
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .store-status {
@@ -593,7 +672,8 @@ onMounted(initialise)
   color: #16703c;
 }
 
-.status-suspended {
+.status-suspended,
+.status-rejected {
   background: #fce8e8;
   color: #b42318;
 }
@@ -609,7 +689,8 @@ onMounted(initialise)
     padding: 20px;
   }
 
-  .primary-button {
+  .primary-button,
+  .secondary-button {
     width: 100%;
   }
 }

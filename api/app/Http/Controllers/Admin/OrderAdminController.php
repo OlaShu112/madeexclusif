@@ -4,39 +4,171 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\OrderFulfilmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class OrderAdminController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
-        $orders = Order::with('items')
-            ->when($request->query('status'), fn ($q, $s) => $q->where('status', $s))
-            ->when($request->query('q'), fn ($q, $term) => $q->where(fn ($w) => $w
-                ->where('number', 'like', "%{$term}%")->orWhere('email', 'like', "%{$term}%")))
-            ->latest()
-            ->paginate(20);
+    /*
+    |--------------------------------------------------------------------------
+    | List Marketplace Orders
+    |--------------------------------------------------------------------------
+    */
+
+    public function index(
+        Request $request
+    ): JsonResponse {
+
+        $data = $request->validate([
+
+            'status' => [
+                'nullable',
+                Rule::in(Order::STATUSES),
+            ],
+
+            'q' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'per_page' => [
+                'nullable',
+                'integer',
+                'min:1',
+                'max:100',
+            ],
+        ]);
+
+        $orders = Order::query()
+
+            ->with([
+                'items',
+                'store:id,name,slug',
+            ])
+
+            ->when(
+                $data['status'] ?? null,
+                fn ($query, $status) =>
+                    $query->where('status', $status)
+            )
+
+            ->when(
+                $data['q'] ?? null,
+                fn ($query, $term) =>
+                    $query->where(
+                        fn ($search) =>
+                            $search
+                                ->where(
+                                    'number',
+                                    'like',
+                                    "%{$term}%"
+                                )
+                                ->orWhere(
+                                    'email',
+                                    'like',
+                                    "%{$term}%"
+                                )
+                    )
+            )
+
+            ->latest('id')
+
+            ->paginate(
+                $data['per_page'] ?? 20
+            );
 
         return response()->json($orders);
     }
 
-    public function show(Order $order): JsonResponse
-    {
-        return response()->json($order->load('items', 'user:id,name,email'));
+    /*
+    |--------------------------------------------------------------------------
+    | View Order Details
+    |--------------------------------------------------------------------------
+    */
+
+    public function show(
+        Order $order
+    ): JsonResponse {
+
+        return response()->json(
+
+            $order->load([
+
+                'items',
+
+                'user:id,name,email',
+
+                'store:id,name,slug',
+
+            ])
+        );
     }
 
-    public function update(Request $request, Order $order): JsonResponse
-    {
+    /*
+    |--------------------------------------------------------------------------
+    | Update Order Fulfilment
+    |--------------------------------------------------------------------------
+    */
+
+    public function update(
+        Request $request,
+        Order $order,
+        OrderFulfilmentService $fulfilment
+    ): JsonResponse {
+
         $data = $request->validate([
-            'status' => ['required', Rule::in(Order::STATUSES)],
-            'tracking_number' => ['nullable', 'string', 'max:100'],
-            'payment_status' => ['nullable', Rule::in(['unpaid', 'paid', 'refunded'])],
+
+            'status' => [
+                'required',
+                Rule::in([
+                    'processing',
+                    'shipped',
+                    'delivered',
+                ]),
+            ],
+
+            'tracking_number' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'payment_status' => [
+                'prohibited',
+            ],
         ]);
 
-        $order->update(array_filter($data, fn ($v) => $v !== null));
+        /*
+         * Payment status must not be manually changed.
+         */
 
-        return response()->json($order->fresh('items'));
+        if ($request->exists('payment_status')) {
+
+            throw ValidationException::withMessages([
+                'payment_status' =>
+                    'Payment status must be managed through verified payment operations.',
+            ]);
+        }
+
+        $updatedOrder = $fulfilment->update(
+
+            order: $order,
+
+            newStatus: $data['status'],
+
+            trackingNumber:
+                $data['tracking_number'] ?? null
+        );
+
+        return response()->json(
+
+            $updatedOrder->load(
+                'store:id,name,slug'
+            )
+        );
     }
 }

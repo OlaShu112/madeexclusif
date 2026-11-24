@@ -1,10 +1,15 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { api } from '@/api/http'
 import { money, dateShort } from '@/utils/format'
 import ProductImage from '@/components/ProductImage.vue'
 
-const tab = ref('dashboard')
+const route = useRoute()
+
+const tab = computed(() =>
+  route.query.tab === 'orders' ? 'orders' : 'products'
+)
 const error = ref('')
 const notice = ref('')
 
@@ -12,10 +17,6 @@ async function guard(fn) {
   error.value = ''
   try { await fn() } catch (e) { error.value = e.message }
 }
-
-// ---------------- Dashboard ----------------
-const stats = ref(null)
-const loadStats = async () => { stats.value = await api('/admin/dashboard') }
 
 // ---------------- Products ----------------
 const products = ref([])
@@ -148,7 +149,32 @@ const statuses = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'canc
 async function loadOrders() {
   orders.value = (await api('/admin/orders', { params: { status: orderStatus.value } })).data
 }
+function allowedStatuses(order) {
+  const transitions = {
+    paid: ['processing'],
+    processing: ['shipped'],
+    shipped: ['delivered'],
+  }
+
+  if (order.payment_status !== 'paid') {
+    return [order.status]
+  }
+
+  return [
+    order.status,
+    ...(transitions[order.status] || []),
+  ]
+}
+
 async function setStatus(o, status) {
+  if (
+    status === o.status ||
+    !allowedStatuses(o).includes(status)
+  ) return
+
+  error.value = ''
+  notice.value = ''
+
   const tracking = status === 'shipped' ? prompt('Tracking number (optional):', o.tracking_number || '') : null
   try {
     await api(`/admin/orders/${o.id}`, { method: 'PATCH', body: { status, tracking_number: tracking || undefined } })
@@ -160,54 +186,39 @@ async function setStatus(o, status) {
 watch(tab, (t) => {
   notice.value = ''
   form.value = null
-  if (t === 'dashboard') guard(loadStats)
-  if (t === 'products') guard(async () => { await Promise.all([loadProducts(), loadLists()]) })
-  if (t === 'orders') guard(loadOrders)
+
+  if (t === 'products') {
+    guard(async () => {
+      await Promise.all([loadProducts(), loadLists()])
+    })
+  }
+
+  if (t === 'orders') {
+    guard(loadOrders)
+  }
+}, { immediate: true })
+
+watch(orderStatus, () => {
+  if (tab.value === 'orders') {
+    guard(loadOrders)
+  }
 })
-watch(orderStatus, () => guard(loadOrders))
-onMounted(() => guard(loadStats))
 </script>
 
 <template>
-  <div class="container section">
-    <h1>Admin</h1>
-    <div class="tabs">
-      <button v-for="t in ['dashboard', 'products', 'orders']" :key="t" :class="{ on: tab === t }" style="text-transform:capitalize" @click="tab = t">{{ t }}</button>
+  <div class="admin-management">
+    <div class="management-heading">
+      <p class="eyebrow">MADE EXCLUSIF ADMINISTRATION</p>
+      <h1>{{ tab === 'orders' ? 'Order Management' : 'Product Management' }}</h1>
+      <p class="muted">
+        {{ tab === 'orders'
+          ? 'Manage customer orders and fulfilment.'
+          : 'Manage your product catalogue, pricing and inventory.' }}
+      </p>
     </div>
+    
     <div v-if="error" class="alert">{{ error }}</div>
     <div v-if="notice" class="alert alert--ok">{{ notice }}</div>
-
-    <!-- Dashboard -->
-    <template v-if="tab === 'dashboard' && stats">
-      <div class="stats">
-        <div class="stat"><b>{{ money(stats.revenue) }}</b>Revenue (paid)</div>
-        <div class="stat"><b>{{ stats.orders }}</b>Orders</div>
-        <div class="stat"><b>{{ stats.pending_orders }}</b>Awaiting payment</div>
-        <div class="stat"><b>{{ stats.customers }}</b>Customers</div>
-        <div class="stat"><b>{{ stats.products }}</b>Perfumes</div>
-      </div>
-      <div class="row">
-        <div>
-          <h3>Recent orders</h3>
-          <table class="table"><tbody>
-            <tr v-for="o in stats.recent_orders" :key="o.id"><td>{{ o.number }}</td><td>{{ o.email }}</td><td><span class="pill" :class="`pill--${o.status}`">{{ o.status }}</span></td><td style="text-align:right">{{ money(o.total) }}</td></tr>
-            <tr v-if="!stats.recent_orders.length"><td class="muted">No orders yet.</td></tr>
-          </tbody></table>
-        </div>
-        <div>
-          <h3>Low stock (≤ 5)</h3>
-          <table class="table"><tbody>
-            <tr v-for="v in stats.low_stock" :key="v.id"><td>{{ v.product?.name }} {{ v.size_ml }}ml</td><td style="text-align:right">{{ v.stock }} left</td></tr>
-            <tr v-if="!stats.low_stock.length"><td class="muted">Nothing running low.</td></tr>
-          </tbody></table>
-          <h3 style="margin-top:24px">Top sellers</h3>
-          <table class="table"><tbody>
-            <tr v-for="t in stats.top_products" :key="t.name"><td>{{ t.name }}</td><td style="text-align:right">{{ t.units }} sold</td></tr>
-            <tr v-if="!stats.top_products.length"><td class="muted">No sales yet.</td></tr>
-          </tbody></table>
-        </div>
-      </div>
-    </template>
 
     <!-- Products: list -->
     <template v-if="tab === 'products' && !form">
@@ -320,7 +331,7 @@ onMounted(() => guard(loadStats))
             <td>{{ o.items.map((i) => `${i.name} ${i.size_ml}ml × ${i.quantity}`).join(', ') }}</td>
             <td>{{ money(o.total) }}</td>
             <td><span class="pill" :class="o.payment_status === 'paid' ? 'pill--paid' : ''">{{ o.payment_status }}</span></td>
-            <td><select class="input" style="padding:6px" :value="o.status" @change="setStatus(o, $event.target.value)"><option v-for="s in statuses" :key="s" :value="s">{{ s }}</option></select></td>
+            <td><select class="input" style="padding:6px" :value="o.status" @change="setStatus(o, $event.target.value)"><option v-for="s in allowedStatuses(o)" :key="s" :value="s">{{ s }}</option></select></td>
           </tr>
           <tr v-if="!orders.length"><td colspan="6" class="muted">No orders found.</td></tr>
         </tbody>
@@ -328,3 +339,84 @@ onMounted(() => guard(loadStats))
     </template>
   </div>
 </template>
+<style scoped>
+.admin-management {
+  width: 100%;
+  min-width: 0;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e8e5df;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.management-heading {
+  margin-bottom: 28px;
+}
+
+.management-heading .eyebrow {
+  color: #a48346;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+
+.management-heading h1 {
+  font-size: 30px;
+  font-weight: 600;
+  color: #222222;
+  margin: 0 0 10px;
+}
+
+.management-heading .muted {
+  font-size: 14px;
+  color: #777777;
+}
+
+.admin-management .table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-management .table th {
+  background: #f7f5f0;
+  color: #555555;
+  font-weight: 600;
+  text-align: left;
+  padding: 15px 12px;
+}
+
+.admin-management .table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #eeeae4;
+}
+
+.admin-management .table tbody tr:hover {
+  background: #fcfbf8;
+}
+
+.admin-management .toolbar {
+  margin-bottom: 20px;
+}
+
+.admin-management .thumb-box {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .admin-management {
+    padding: 15px;
+  }
+
+  .management-heading h1 {
+    font-size: 24px;
+  }
+
+  .admin-management .table {
+    min-width: 650px;
+  }
+}
+</style>
