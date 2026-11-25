@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -28,6 +29,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',
         'phone',
+        'avatar',
     ];
 
     /*
@@ -39,6 +41,17 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'avatar',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Appended Attributes
+    |--------------------------------------------------------------------------
+    */
+
+    protected $appends = [
+        'avatar_url',
     ];
 
     /*
@@ -53,6 +66,22 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Avatar Accessor
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Return the public URL of the user's profile avatar.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar
+            ? Storage::disk('public')->url($this->avatar)
+            : null;
     }
 
     /*

@@ -175,4 +175,9 @@ class Store extends Model
     {
         return $this->status === 'suspended';
     }
+
+    public function paymentSetting(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(StorePaymentSetting::class);
+    }
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\RefundAdminController;
 use App\Http\Controllers\Admin\StoreAdminController;
 use App\Http\Controllers\Admin\AnalyticsAdminController;
 use App\Http\Controllers\Seller\SellerFinanceController;
+use App\Http\Controllers\Admin\ProfileController;
 
 use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
@@ -410,6 +411,32 @@ Route::prefix('seller')
 Route::prefix('admin')
     ->middleware(['auth:sanctum', 'admin'])
     ->group(function () {
+// Administrator Profile Management
+
+Route::get(
+    '/profile',
+    [ProfileController::class, 'show']
+);
+
+Route::patch(
+    '/profile',
+    [ProfileController::class, 'update']
+)->middleware('throttle:10,1');
+
+Route::post(
+    '/profile/avatar',
+    [ProfileController::class, 'uploadAvatar']
+)->middleware('throttle:5,1');
+
+Route::delete(
+    '/profile/avatar',
+    [ProfileController::class, 'removeAvatar']
+)->middleware('throttle:5,1');
+
+Route::put(
+    '/profile/password',
+    [ProfileController::class, 'updatePassword']
+)->middleware('throttle:5,1');
 
         /*
         |--------------------------------------------------------------------------

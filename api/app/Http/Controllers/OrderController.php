@@ -39,6 +39,8 @@ class OrderController extends Controller
          * 1. Validate customer and checkout information.
          */
 
+        abort(503, 'Online checkout is temporarily unavailable.');
+
         $data = $request->validate([
 
             'email' => [

@@ -39,9 +39,36 @@ class AuthController extends Controller
     public function login(
         LoginRequest $request
     ): JsonResponse {
-        return $this->tokenResponse(
-            $request->authenticate()
-        );
+        $portal = $request->validate([
+            'portal' => [
+                'nullable',
+                'in:customer,admin,seller',
+            ],
+        ])['portal'] ?? 'customer';
+
+        $user = $request->authenticate();
+
+        if ($portal === 'admin' && ! $user->isAdmin()) {
+            abort(403, 'Administrator access is required.');
+        }
+
+        if ($portal === 'seller') {
+
+            if ($user->isAdmin()) {
+                abort(403, 'Please use the administrator portal.');
+            }
+
+            // Business applicants may authenticate to
+            // complete onboarding or track their application.
+            // Protected seller operations remain restricted
+            // by the EnsureSeller middleware.
+        }
+
+        if ($portal === 'customer' && $user->isAdmin()) {
+            abort(403, 'Please sign in through the administrator portal.');
+        }
+
+        return $this->tokenResponse($user);
     }
 
     /**

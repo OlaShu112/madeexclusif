@@ -1,31 +1,23 @@
 <script setup>
-import AnnouncementBar from '@/components/AnnouncementBar.vue'
-import AppHeader from '@/components/AppHeader.vue'
-import AppFooter from '@/components/AppFooter.vue'
-import AiChatWidget from '@/components/AiChatWidget.vue'
-
-import { useRoute } from 'vue-router'
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import MarketplaceLayout from '@/layouts/MarketplaceLayout.vue'
 
 const route = useRoute()
 
-// Display the AI assistant only on the main Made Exclusif website.
-const showAiChat = computed(() => route.name === 'home')
+const independentLayout = computed(() =>
+  [
+    'platform',
+    'admin',
+    'onboarding',
+    'seller',
+    'storefront',
+    'portal-auth'
+  ].includes(route.meta.layout)
+)
 </script>
 
 <template>
-  <AnnouncementBar />
-
-  <AppHeader />
-
-  <main>
-    <router-view v-slot="{ Component }">
-      <component :is="Component" :key="route.path" />
-    </router-view>
-  </main>
-
-  <AppFooter />
-
-  <AiChatWidget v-if="showAiChat" />
+  <RouterView v-if="independentLayout" />
+  <MarketplaceLayout v-else />
 </template>
-

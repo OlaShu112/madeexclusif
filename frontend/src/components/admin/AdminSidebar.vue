@@ -23,6 +23,7 @@ import {
   Tags,
   Bell,
   LogOut,
+  UserRound,
 } from 'lucide-vue-next'
 
 defineProps({
@@ -47,7 +48,7 @@ async function handleLogout() {
 
   try {
     await auth.logout()
-    await router.replace('/login')
+    await router.replace('/admin/login')
   } finally {
     loggingOut.value = false
   }
@@ -141,6 +142,11 @@ const sections = [
   {
     title: 'SYSTEM',
     items: [
+      {
+        label: 'My Profile',
+        icon: UserRound,
+        to: '/admin/profile',
+      },
       {
         label: 'Audit Logs',
         icon: ShieldCheck,

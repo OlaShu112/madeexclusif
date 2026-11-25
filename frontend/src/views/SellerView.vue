@@ -38,9 +38,9 @@ async function loadDashboard() {
   error.value = ''
 
   try {
-    const response = await api('/seller/store')
+    const response = await api('/my-store')
 
-    store.value = response?.store ?? response
+    store.value = response?.store ?? null
 
     if (store.value?.status === 'active') {
       const [productResponse, orderResponse] = await Promise.all([
@@ -70,7 +70,7 @@ async function updateOrderStatus(order, status) {
   try {
     const updated = await api(`/seller/orders/${order.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ status }),
+      body: { status },
     })
 
     const index = orders.value.findIndex(
@@ -94,7 +94,7 @@ async function updateOrderStatus(order, status) {
 }
 
 function nextStatus(status) {
-  if (status === 'pending' || status === 'paid') {
+  if (status === 'paid') {
     return 'processing'
   }
 
@@ -116,7 +116,7 @@ onMounted(loadDashboard)
   <main class="container seller-dashboard">
     <div class="dashboard-heading">
       <div>
-        <p class="eyebrow">Made Exclusif Marketplace</p>
+        <p class="eyebrow">{{ store?.name || "Business Portal" }}</p>
         <h1>Seller Dashboard</h1>
         <p>Manage your storefront, products and customer orders.</p>
       </div>

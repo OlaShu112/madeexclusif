@@ -90,6 +90,15 @@ class StoreController extends Controller
                 'max:255',
             ],
 
+            'payment_mode' => [
+                'required',
+                Rule::in([
+                    'platform',
+                    'independent',
+                    'not_configured',
+                ]),
+            ],
+
             'accent' => [
                 'nullable',
                 'regex:/^#[0-9a-fA-F]{6}$/',
@@ -184,6 +193,16 @@ class StoreController extends Controller
                  *    to the marketplace administrator.
                  */
 
+                $newStore->paymentSetting()->create([
+                    'payment_mode' => $data['payment_mode'],
+                    'provider' => $data['payment_mode'] === 'platform'
+                        ? 'stripe_connect'
+                        : null,
+                    'status' => 'pending_setup',
+                    'checkout_enabled' => false,
+                    'preference_changed_at' => now(),
+                ]);
+
                 $notifications->applicationSubmitted($newStore);
 
                 return $newStore;
@@ -201,7 +220,7 @@ class StoreController extends Controller
             'message' =>
                 'Store created successfully. Your store is awaiting approval.',
 
-            'store' => $store->load('businessCategory'),
+            'store' => $store->load('businessCategory', 'paymentSetting'),
         ], 201);
     }
 
@@ -221,7 +240,7 @@ class StoreController extends Controller
             ]);
         }
 
-        $store->load('businessCategory');
+        $store->load('businessCategory', 'paymentSetting');
 
         $paidStatuses = [
             'paid',

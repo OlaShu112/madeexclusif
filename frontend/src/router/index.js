@@ -17,14 +17,84 @@ import { useAuthStore } from '@/stores/auth'
  * - Dedicated administration portal
  * - Administrator analytics
  * - Administrator business management
+ * - Administrator profile management
  */
 
 const routes = [
+  // IVISION public platform
+  {
+    path: '/',
+    component: () => import('@/layouts/PlatformLayout.vue'),
+    meta: { layout: 'platform' },
+    children: [
+      {
+        path: '',
+        name: 'platform-home',
+        component: () =>
+          import('@/views/platform/PlatformHomeView.vue'),
+      },
+    ],
+  },
+
+  // Independent business registration
+  {
+    path: '/business/register',
+    component: () => import('@/layouts/PortalAuthLayout.vue'),
+    meta: {
+      layout: 'portal-auth',
+      guestOnly: true,
+    },
+    children: [
+      {
+        path: '',
+        name: 'business-register',
+        component: () =>
+          import('@/views/onboarding/BusinessRegisterView.vue'),
+      },
+    ],
+  },
+
+
+  // Independent administrator authentication
+  {
+    path: '/admin/login',
+    component: () => import('@/layouts/PortalAuthLayout.vue'),
+    meta: {
+      layout: 'portal-auth',
+      guestOnly: true,
+    },
+    children: [
+      {
+        path: '',
+        name: 'admin-login',
+        component: () => import('@/views/PortalLoginView.vue'),
+      },
+    ],
+  },
+
+  // Independent business authentication
+  {
+    path: '/seller/login',
+    component: () => import('@/layouts/PortalAuthLayout.vue'),
+    meta: {
+      layout: 'portal-auth',
+      guestOnly: true,
+    },
+    children: [
+      {
+        path: '',
+        name: 'seller-login',
+        component: () => import('@/views/PortalLoginView.vue'),
+      },
+    ],
+  },
+
+
 
   // Main storefront
 
   {
-    path: '/',
+    path: '/made-exclusif',
     name: 'home',
     component: () => import('@/views/HomeView.vue'),
   },
@@ -126,11 +196,18 @@ const routes = [
 
   {
     path: '/open-store',
-    name: 'open-store',
-    component: () => import('@/views/OpenStoreView.vue'),
+    component: () => import('@/layouts/BusinessOnboardingLayout.vue'),
     meta: {
       auth: true,
+      layout: 'onboarding',
     },
+    children: [
+      {
+        path: '',
+        name: 'open-store',
+        component: () => import('@/views/OpenStoreView.vue'),
+      },
+    ],
   },
 
   // Seller dashboard
@@ -193,6 +270,15 @@ const routes = [
         component: () =>
           import('@/views/AdminStoresView.vue'),
       },
+
+      // Administrator profile
+
+      {
+        path: 'profile',
+        name: 'admin-profile',
+        component: () =>
+          import('@/views/AdminProfileView.vue'),
+      },
     ],
   },
 
@@ -245,47 +331,54 @@ router.beforeEach((to) => {
 
   const auth = useAuthStore()
 
-  // Authentication required
+  const adminRoute =
+    to.path === '/admin' ||
+    to.path.startsWith('/admin/')
+
+  const sellerRoute =
+    to.path === '/seller' ||
+    to.path.startsWith('/seller/')
 
   if (to.meta.auth && !auth.user) {
-
     return {
-      name: 'login',
+      name: adminRoute
+        ? 'admin-login'
+        : sellerRoute
+          ? 'seller-login'
+          : 'login',
       query: {
         redirect: to.fullPath,
       },
     }
   }
 
-  // Administrator-only pages
-
   if (to.meta.admin && !auth.isAdmin) {
-
-    return {
-      name: 'home',
-    }
+    return { name: 'account' }
   }
 
-  // Authenticated users should not see login/register
+  if (to.name === 'business-register' && auth.user) {
+    return auth.isAdmin
+      ? { name: 'admin' }
+      : { name: 'open-store' }
+  }
 
   if (to.meta.guestOnly && auth.user) {
 
-    const redirect = to.query.redirect
-
-    // Only allow safe internal redirects.
-
-    if (
-      typeof redirect === 'string' &&
-      redirect.startsWith('/') &&
-      !redirect.startsWith('//') &&
-      !redirect.startsWith('/\\')
-    ) {
-      return redirect
+    if (to.name === 'admin-login') {
+      return auth.isAdmin
+        ? { name: 'admin' }
+        : { name: 'account' }
     }
 
-    return {
-      name: 'account',
+    if (to.name === 'seller-login') {
+      return auth.isAdmin
+        ? { name: 'admin' }
+        : { name: 'seller' }
     }
+
+    return auth.isAdmin
+      ? { name: 'admin' }
+      : { name: 'account' }
   }
 
   return true

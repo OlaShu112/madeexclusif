@@ -21,7 +21,8 @@ const storeCategories = ref([])
 const form = reactive({
   name: '',
   business_category_id: '',
-  tagline: ''
+  tagline: '',
+  payment_mode: 'not_configured'
 })
 
 async function loadBusinessCategories() {
@@ -141,7 +142,8 @@ async function submit() {
       body: {
         name: form.name.trim(),
         business_category_id: Number(form.business_category_id),
-        tagline: form.tagline.trim()
+        tagline: form.tagline.trim(),
+        payment_mode: form.payment_mode
       }
     })
 
@@ -180,7 +182,7 @@ onMounted(initialise)
       <h1>Open Your Store</h1>
 
       <p>
-        Join Made Exclusif and create your own online
+        Create your own independent online
         storefront. Choose your business category
         and start building your online business.
       </p>
@@ -307,7 +309,7 @@ onMounted(initialise)
         </div>
 
         <p>
-          Contact the Made Exclusif support team
+          Contact the platform support team
           if you would like your application
           to be reconsidered.
         </p>
@@ -341,7 +343,7 @@ onMounted(initialise)
         </div>
 
         <p>
-          Please contact Made Exclusif support
+          Please contact platform support
           to discuss the next steps.
         </p>
       </div>
@@ -438,7 +440,7 @@ onMounted(initialise)
 
         <small class="field-help">
           If your business category is not listed,
-          please contact Made Exclusif support.
+          please contact platform support.
         </small>
       </div>
 
@@ -459,12 +461,83 @@ onMounted(initialise)
         </small>
       </div>
 
+
+      <fieldset class="payment-options">
+        <legend>Payment Preferences</legend>
+
+        <p class="payment-intro">
+          Choose how your business will receive payments.
+          You can configure or change your payment provider
+          later.
+        </p>
+
+        <label class="payment-option">
+          <input
+            v-model="form.payment_mode"
+            type="radio"
+            value="platform"
+            :disabled="loading"
+          />
+
+          <span>
+            <strong>Use IVISION Payment Gateway</strong>
+            <small>
+              Accept payments through the integrated
+              Stripe Connect payment infrastructure.
+              Account verification and applicable fees
+              will be confirmed during payment setup.
+            </small>
+          </span>
+        </label>
+
+        <label class="payment-option">
+          <input
+            v-model="form.payment_mode"
+            type="radio"
+            value="independent"
+            :disabled="loading"
+          />
+
+          <span>
+            <strong>Use My Own Payment Gateway</strong>
+            <small>
+              Connect your own supported merchant account
+              and receive payments directly through your
+              chosen provider.
+            </small>
+          </span>
+        </label>
+
+        <label class="payment-option">
+          <input
+            v-model="form.payment_mode"
+            type="radio"
+            value="not_configured"
+            :disabled="loading"
+          />
+
+          <span>
+            <strong>Configure Payments Later</strong>
+            <small>
+              Create your business and configure your
+              storefront before activating online payments.
+            </small>
+          </span>
+        </label>
+
+        <p class="payment-intro">
+          Online checkout will remain disabled until your
+          selected payment provider has been configured
+          and verified.
+        </p>
+      </fieldset>
+
       <div class="approval-notice">
         <strong>Business Approval</strong>
 
         <p>
           All new businesses are reviewed by the
-          Made Exclusif administration team before
+          IVISION administration team before
           they can begin selling on the marketplace.
         </p>
 
@@ -694,4 +767,57 @@ onMounted(initialise)
     width: 100%;
   }
 }
+
+.payment-options {
+  border: 1px solid #dedede;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 25px 0;
+}
+
+.payment-options legend {
+  font-weight: 700;
+  padding: 0 8px;
+}
+
+.payment-intro {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+
+.payment-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #dedede;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+
+.payment-option:has(input:checked) {
+  border-color: #222;
+  background: #f7f7f7;
+}
+
+.payment-option input {
+  width: auto;
+  margin-top: 5px;
+  accent-color: #222;
+}
+
+.payment-option strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.payment-option small {
+  display: block;
+  color: #666;
+  line-height: 1.6;
+}
+
 </style>
