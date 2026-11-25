@@ -1,18 +1,20 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsAdminController;
 use App\Http\Controllers\Admin\BrandCategoryAdminController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EmailAdminController;
 use App\Http\Controllers\Admin\OrderAdminController;
 use App\Http\Controllers\Admin\ProductAdminController;
+use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\RefundAdminController;
 use App\Http\Controllers\Admin\StoreAdminController;
-use App\Http\Controllers\Admin\AnalyticsAdminController;
-use App\Http\Controllers\Seller\SellerFinanceController;
-use App\Http\Controllers\Admin\ProfileController;
 
+use App\Http\Controllers\Seller\SellerFinanceController;
 use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
+use App\Http\Controllers\Seller\StoreThemeController;
+use App\Http\Controllers\Seller\StoreMediaController;
 
 use App\Http\Controllers\AiChatController;
 use App\Http\Controllers\AuthController;
@@ -324,6 +326,65 @@ Route::prefix('seller')
 
         /*
         |--------------------------------------------------------------------------
+        | Independent Website Management
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            '/website/theme',
+            [StoreThemeController::class, 'show']
+        );
+
+        Route::put(
+            '/website/theme',
+            [StoreThemeController::class, 'update']
+        )
+            ->middleware('throttle:30,1');
+
+        Route::post(
+            '/website/theme/publish',
+            [StoreThemeController::class, 'publish']
+        )
+            ->middleware('throttle:10,1');
+
+        Route::post(
+            '/website/theme/reset',
+            [StoreThemeController::class, 'reset']
+        )
+            ->middleware('throttle:5,1');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Website Media Management
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            '/website/media',
+            [StoreMediaController::class, 'index']
+        );
+
+        Route::post(
+            '/website/media',
+            [StoreMediaController::class, 'store']
+        )
+            ->middleware('throttle:20,1');
+
+        Route::get(
+            '/website/media/{media}',
+            [StoreMediaController::class, 'show']
+        )
+            ->whereNumber('media');
+
+        Route::patch(
+            '/website/media/{media}',
+            [StoreMediaController::class, 'update']
+        )
+            ->whereNumber('media')
+            ->middleware('throttle:30,1');
+
+        /*
+        |--------------------------------------------------------------------------
         | Seller Store Management
         |--------------------------------------------------------------------------
         */
@@ -380,21 +441,25 @@ Route::prefix('seller')
             [SellerOrderController::class, 'update']
         );
 
-	// Seller Financial Management
+        /*
+        |--------------------------------------------------------------------------
+        | Seller Financial Management
+        |--------------------------------------------------------------------------
+        */
 
-       Route::get(
+        Route::get(
             '/finance',
-       [SellerFinanceController::class, 'show']
-	);
-
-       Route::get(
-          '/finance/transactions',
-          [SellerFinanceController::class, 'transactions']
+            [SellerFinanceController::class, 'show']
         );
 
-       Route::get(
-        '/finance/payouts',
-         [SellerFinanceController::class, 'payouts']
+        Route::get(
+            '/finance/transactions',
+            [SellerFinanceController::class, 'transactions']
+        );
+
+        Route::get(
+            '/finance/payouts',
+            [SellerFinanceController::class, 'payouts']
         );
     });
 
@@ -411,36 +476,45 @@ Route::prefix('seller')
 Route::prefix('admin')
     ->middleware(['auth:sanctum', 'admin'])
     ->group(function () {
-// Administrator Profile Management
-
-Route::get(
-    '/profile',
-    [ProfileController::class, 'show']
-);
-
-Route::patch(
-    '/profile',
-    [ProfileController::class, 'update']
-)->middleware('throttle:10,1');
-
-Route::post(
-    '/profile/avatar',
-    [ProfileController::class, 'uploadAvatar']
-)->middleware('throttle:5,1');
-
-Route::delete(
-    '/profile/avatar',
-    [ProfileController::class, 'removeAvatar']
-)->middleware('throttle:5,1');
-
-Route::put(
-    '/profile/password',
-    [ProfileController::class, 'updatePassword']
-)->middleware('throttle:5,1');
 
         /*
         |--------------------------------------------------------------------------
-        | Administrator Dashboard
+        | Administrator Profile Management
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get(
+            '/profile',
+            [ProfileController::class, 'show']
+        );
+
+        Route::patch(
+            '/profile',
+            [ProfileController::class, 'update']
+        )
+            ->middleware('throttle:10,1');
+
+        Route::post(
+            '/profile/avatar',
+            [ProfileController::class, 'uploadAvatar']
+        )
+            ->middleware('throttle:5,1');
+
+        Route::delete(
+            '/profile/avatar',
+            [ProfileController::class, 'removeAvatar']
+        )
+            ->middleware('throttle:5,1');
+
+        Route::put(
+            '/profile/password',
+            [ProfileController::class, 'updatePassword']
+        )
+            ->middleware('throttle:5,1');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Administrator Dashboard and Analytics
         |--------------------------------------------------------------------------
         */
 
@@ -448,10 +522,11 @@ Route::put(
             '/dashboard',
             [DashboardController::class, 'index']
         );
-	    Route::get('/analytics', [
-            AnalyticsAdminController::class,
-            'index'
-        ]);
+
+        Route::get(
+            '/analytics',
+            [AnalyticsAdminController::class, 'index']
+        );
 
         /*
         |--------------------------------------------------------------------------
@@ -609,3 +684,5 @@ Route::put(
         )
             ->middleware('throttle:10,1');
     });
+
+require __DIR__.'/business-management.php';

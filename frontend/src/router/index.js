@@ -6,14 +6,18 @@ import {
 import { useAuthStore } from '@/stores/auth'
 
 /**
- * Made Exclusif - Vue Router
+ * IVISION - Vue Router
  *
  * Supports:
- * - Main perfume storefront
- * - Independent seller storefronts
+ * - IVISION public platform
+ * - Independent business registration
+ * - Independent portal authentication
+ * - Main Made Exclusif storefront
+ * - Independent business storefronts
  * - Customer accounts and checkout
  * - Password recovery
- * - Seller dashboard
+ * - Independent seller portal
+ * - Independent website theme management
  * - Dedicated administration portal
  * - Administrator analytics
  * - Administrator business management
@@ -21,11 +25,18 @@ import { useAuthStore } from '@/stores/auth'
  */
 
 const routes = [
+
   // IVISION public platform
+
   {
     path: '/',
-    component: () => import('@/layouts/PlatformLayout.vue'),
-    meta: { layout: 'platform' },
+    component: () =>
+      import('@/layouts/PlatformLayout.vue'),
+
+    meta: {
+      layout: 'platform',
+    },
+
     children: [
       {
         path: '',
@@ -37,13 +48,17 @@ const routes = [
   },
 
   // Independent business registration
+
   {
     path: '/business/register',
-    component: () => import('@/layouts/PortalAuthLayout.vue'),
+    component: () =>
+      import('@/layouts/PortalAuthLayout.vue'),
+
     meta: {
       layout: 'portal-auth',
       guestOnly: true,
     },
+
     children: [
       {
         path: '',
@@ -54,81 +69,117 @@ const routes = [
     ],
   },
 
-
   // Independent administrator authentication
+
   {
     path: '/admin/login',
-    component: () => import('@/layouts/PortalAuthLayout.vue'),
+    component: () =>
+      import('@/layouts/PortalAuthLayout.vue'),
+
     meta: {
       layout: 'portal-auth',
       guestOnly: true,
     },
+
     children: [
       {
         path: '',
         name: 'admin-login',
-        component: () => import('@/views/PortalLoginView.vue'),
+        component: () =>
+          import('@/views/PortalLoginView.vue'),
       },
     ],
   },
 
   // Independent business authentication
+
   {
     path: '/seller/login',
-    component: () => import('@/layouts/PortalAuthLayout.vue'),
+    component: () =>
+      import('@/layouts/PortalAuthLayout.vue'),
+
     meta: {
       layout: 'portal-auth',
       guestOnly: true,
     },
+
     children: [
       {
         path: '',
         name: 'seller-login',
-        component: () => import('@/views/PortalLoginView.vue'),
+        component: () =>
+          import('@/views/PortalLoginView.vue'),
       },
     ],
   },
 
-
-
-  // Main storefront
+  // Made Exclusif main storefront
 
   {
     path: '/made-exclusif',
     name: 'home',
-    component: () => import('@/views/HomeView.vue'),
+    component: () =>
+      import('@/views/HomeView.vue'),
   },
+
   {
     path: '/shop',
     name: 'shop',
-    component: () => import('@/views/ShopView.vue'),
+    component: () =>
+      import('@/views/ShopView.vue'),
   },
+
   {
     path: '/product/:slug',
     name: 'product',
-    component: () => import('@/views/ProductView.vue'),
+    component: () =>
+      import('@/views/ProductView.vue'),
     props: true,
   },
 
-  // Independent seller storefronts
+  // Independent business storefronts
 
   {
     path: '/s/:store',
-    name: 'store-home',
-    component: () => import('@/views/StoreHomeView.vue'),
-    props: true,
-  },
-  {
-    path: '/s/:store/shop',
-    name: 'store-shop',
-    component: () => import('@/views/ShopView.vue'),
-    props: true,
-  },
-  {
-    path: '/s/:store/product/:slug',
-    name: 'store-product',
-    component: () => import('@/views/ProductView.vue'),
-    props: true,
+    component: () =>
+      import('@/layouts/StorefrontLayout.vue'),
+
+    meta: {
+      layout: 'storefront',
+    },
+
+    children: [
+      {
+        path: '',
+        name: 'store-home',
+        component: () =>
+          import('@/views/StoreHomeView.vue'),
+        props: true,
+      },
+
+      {
+        path: 'shop',
+        name: 'store-shop',
+        component: () =>
+          import('@/views/ShopView.vue'),
+        props: true,
+      },
+
+      {
+        path: 'pages/:page',
+        name: 'store-page',
+        component: () =>
+          import('@/views/StorePageView.vue'),
+      },
+
+      {
+        path: 'product/:slug',
+        name: 'store-product',
+        component: () =>
+          import('@/views/ProductView.vue'),
+        props: true,
+      },
+    ],
   },
 
   // Shopping cart and checkout
@@ -136,33 +187,43 @@ const routes = [
   {
     path: '/cart',
     name: 'cart',
-    component: () => import('@/views/CartView.vue'),
+    component: () =>
+      import('@/views/CartView.vue'),
   },
+
   {
     path: '/checkout',
     name: 'checkout',
-    component: () => import('@/views/CheckoutView.vue'),
+    component: () =>
+      import('@/views/CheckoutView.vue'),
   },
+
   {
     path: '/order-success',
     name: 'order-success',
-    component: () => import('@/views/OrderSuccessView.vue'),
+    component: () =>
+      import('@/views/OrderSuccessView.vue'),
   },
 
-  // Authentication
+  // Customer authentication
 
   {
     path: '/login',
     name: 'login',
-    component: () => import('@/views/LoginView.vue'),
+    component: () =>
+      import('@/views/LoginView.vue'),
+
     meta: {
       guestOnly: true,
     },
   },
+
   {
     path: '/register',
     name: 'register',
-    component: () => import('@/views/RegisterView.vue'),
+    component: () =>
+      import('@/views/RegisterView.vue'),
+
     meta: {
       guestOnly: true,
     },
@@ -173,12 +234,15 @@ const routes = [
   {
     path: '/forgot-password',
     name: 'forgot-password',
-    component: () => import('@/views/ForgotPasswordView.vue'),
+    component: () =>
+      import('@/views/ForgotPasswordView.vue'),
   },
+
   {
     path: '/reset-password',
     name: 'reset-password',
-    component: () => import('@/views/ResetPasswordView.vue'),
+    component: () =>
+      import('@/views/ResetPasswordView.vue'),
   },
 
   // Customer account
@@ -186,47 +250,94 @@ const routes = [
   {
     path: '/account',
     name: 'account',
-    component: () => import('@/views/AccountView.vue'),
+    component: () =>
+      import('@/views/AccountView.vue'),
+
     meta: {
       auth: true,
     },
   },
 
-  // Seller registration
+  // Independent business onboarding
 
   {
     path: '/open-store',
-    component: () => import('@/layouts/BusinessOnboardingLayout.vue'),
+    component: () =>
+      import('@/layouts/BusinessOnboardingLayout.vue'),
+
     meta: {
       auth: true,
       layout: 'onboarding',
     },
+
     children: [
       {
         path: '',
         name: 'open-store',
-        component: () => import('@/views/OpenStoreView.vue'),
+        component: () =>
+          import('@/views/OpenStoreView.vue'),
       },
     ],
   },
 
-  // Seller dashboard
+  // Independent IVISION Seller Portal
 
   {
     path: '/seller',
-    name: 'seller',
-    component: () => import('@/views/SellerView.vue'),
+
+    component: () =>
+      import('@/layouts/SellerLayout.vue'),
+
     meta: {
       auth: true,
+      layout: 'seller',
     },
+
+    children: [
+
+      // Seller dashboard
+
+      {
+        path: '',
+        name: 'seller',
+        component: () =>
+          import('@/views/SellerView.vue'),
+      },
+
+      // Independent website theme management
+
+      {
+        path: 'website/pages',
+        name: 'seller-website-pages',
+        component: () =>
+          import('@/views/seller/website/PagesView.vue'),
+      },
+
+      {
+        path: 'website/theme',
+        name: 'seller-website-theme',
+        component: () =>
+          import('@/views/seller/website/ThemeEditorView.vue'),
+      },
+
+      // Independent website media management
+
+      {
+        path: 'website/media',
+        name: 'seller-website-media',
+        component: () =>
+          import('@/views/seller/website/MediaLibraryView.vue'),
+      },
+    ],
   },
 
-  // Administration Portal
+  // Independent Administration Portal
 
   {
     path: '/admin',
 
-    component: () => import('@/layouts/AdminLayout.vue'),
+    component: () =>
+      import('@/layouts/AdminLayout.vue'),
 
     meta: {
       auth: true,
@@ -287,7 +398,8 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
-    component: () => import('@/views/NotFoundView.vue'),
+    component: () =>
+      import('@/views/NotFoundView.vue'),
   },
 ]
 
@@ -340,12 +452,14 @@ router.beforeEach((to) => {
     to.path.startsWith('/seller/')
 
   if (to.meta.auth && !auth.user) {
+
     return {
       name: adminRoute
         ? 'admin-login'
         : sellerRoute
           ? 'seller-login'
           : 'login',
+
       query: {
         redirect: to.fullPath,
       },
@@ -353,10 +467,13 @@ router.beforeEach((to) => {
   }
 
   if (to.meta.admin && !auth.isAdmin) {
-    return { name: 'account' }
+    return {
+      name: 'account',
+    }
   }
 
   if (to.name === 'business-register' && auth.user) {
+
     return auth.isAdmin
       ? { name: 'admin' }
       : { name: 'open-store' }
@@ -365,12 +482,14 @@ router.beforeEach((to) => {
   if (to.meta.guestOnly && auth.user) {
 
     if (to.name === 'admin-login') {
+
       return auth.isAdmin
         ? { name: 'admin' }
         : { name: 'account' }
     }
 
     if (to.name === 'seller-login') {
+
       return auth.isAdmin
         ? { name: 'admin' }
         : { name: 'seller' }

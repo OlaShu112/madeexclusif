@@ -1,58 +1,42 @@
 import { defineStore } from 'pinia'
 import { api } from '@/api/http'
 
-/**
- * Made Exclusif - Storefront State Management
- *
- * Manages the currently selected seller storefront.
- *
- * Supports:
- * - Store branding
- * - Store switching
- * - Loading states
- * - Store availability
- * - API error handling
- */
-
 export const useStorefrontStore = defineStore('storefront', {
+
   state: () => ({
     store: null,
     loading: false,
     notFound: false,
     error: null,
+    requestVersion: 0
   }),
 
   getters: {
-    storeName: (state) => state.store?.name ?? 'Made Exclusif',
+    storeName: state => state.store?.name ?? 'Store',
 
-    storeSlug: (state) => state.store?.slug ?? null,
+    storeSlug: state => state.store?.slug ?? null,
 
-    storeLogo: (state) => state.store?.logo_url ?? null,
+    storeLogo: state => state.store?.logo_url ?? null,
 
-    storeAccent: (state) => state.store?.accent ?? '#2f3a45',
+    storeAccent: state => state.store?.accent ?? '#222222',
 
-    storeType: (state) => state.store?.type ?? null,
+    storeType: state => state.store?.type ?? null,
 
-    isMainStore: (state) => state.store?.is_main === true,
+    isMainStore: state => state.store?.is_main === true,
 
-    isStoreAvailable: (state) =>
-      state.store !== null && state.store.status === 'active',
+    isStoreAvailable: state =>
+      state.store?.status === 'active'
   },
 
   actions: {
-    /**
-     * Load storefront details by slug.
-     */
+
     async load(slug) {
       if (!slug) {
         this.reset()
         return null
       }
 
-      // Avoid unnecessary API calls.
-      if (this.store?.slug === slug && !this.error) {
-        return this.store
-      }
+      const version = ++this.requestVersion
 
       this.loading = true
       this.notFound = false
@@ -64,50 +48,47 @@ export const useStorefrontStore = defineStore('storefront', {
           `/stores/${encodeURIComponent(slug)}`
         )
 
+        if (version !== this.requestVersion) {
+          return null
+        }
+
         this.store = store
 
         return store
+
       } catch (error) {
-        this.store = null
+        if (version !== this.requestVersion) {
+          return null
+        }
 
-        const status = error?.status ?? error?.response?.status
-
-        this.notFound = status === 404
+        this.notFound = error?.status === 404
 
         this.error = this.notFound
           ? 'This store could not be found.'
           : 'Unable to load this store. Please try again.'
 
         return null
+
       } finally {
-        this.loading = false
+        if (version === this.requestVersion) {
+          this.loading = false
+        }
       }
     },
 
-    /**
-     * Clear the current storefront.
-     */
     reset() {
+      this.requestVersion++
+
       this.store = null
       this.loading = false
       this.notFound = false
       this.error = null
     },
 
-    /**
-     * Refresh the current storefront.
-     */
     async refresh() {
       const slug = this.store?.slug
 
-      if (!slug) {
-        return null
-      }
-
-      this.store = null
-
-      return this.load(slug)
-    },
-  },
+      return slug ? this.load(slug) : null
+    }
+  }
 })
-

@@ -1,18 +1,48 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import {
+  ref,
+  computed,
+  onMounted,
+} from 'vue'
+
+import {
+  useRoute,
+  useRouter,
+} from 'vue-router'
+
 import { api } from '@/api/http'
 import { money } from '@/utils/format'
 
 const router = useRouter()
+const route = useRoute()
 
 const loading = ref(true)
 const error = ref('')
 const store = ref(null)
 const products = ref([])
 const orders = ref([])
-const activeTab = ref('products')
 const savingOrderId = ref(null)
+
+/**
+ * Synchronise dashboard tabs with seller sidebar navigation.
+ */
+const activeTab = computed({
+  get() {
+    return route.query.tab === 'orders'
+      ? 'orders'
+      : 'products'
+  },
+
+  set(value) {
+    router.replace({
+      name: 'seller',
+      query: {
+        ...route.query,
+        tab: value,
+      },
+    })
+  },
+})
 
 const isApproved = computed(() =>
   store.value?.status === 'active'
@@ -114,15 +144,22 @@ onMounted(loadDashboard)
 
 <template>
   <main class="container seller-dashboard">
+
     <div class="dashboard-heading">
       <div>
-        <p class="eyebrow">{{ store?.name || "Business Portal" }}</p>
+        <p class="eyebrow">
+          {{ store?.name || 'Business Portal' }}
+        </p>
+
         <h1>Seller Dashboard</h1>
-        <p>Manage your storefront, products and customer orders.</p>
+
+        <p>
+          Manage your storefront, products and customer orders.
+        </p>
       </div>
 
       <router-link
-        v-if="storeUrl"
+        v-if="storeUrl && isApproved"
         :to="storeUrl"
         class="secondary-button"
       >
@@ -130,24 +167,69 @@ onMounted(loadDashboard)
       </router-link>
     </div>
 
-    <p v-if="loading">Loading your dashboard...</p>
+    <p v-if="loading">
+      Loading your dashboard...
+    </p>
 
-    <div v-else-if="error && !store" class="message error" role="alert">
+    <div
+      v-else-if="error && !store"
+      class="message error"
+      role="alert"
+    >
       <p>{{ error }}</p>
-      <button type="button" @click="loadDashboard">
+
+      <button
+        type="button"
+        @click="loadDashboard"
+      >
         Try Again
       </button>
-      <button type="button" @click="router.push('/open-store')">
+
+      <button
+        type="button"
+        @click="router.push('/open-store')"
+      >
         Open a Store
       </button>
     </div>
 
     <template v-else-if="store">
+
+      <!-- Website Management -->
+
+      <section
+        v-if="isApproved"
+        style="padding:24px;margin:20px 0;border:1px solid #ddd;border-radius:10px;background:#fff"
+      >
+        <h2>Website Management</h2>
+
+        <p>
+          Customise your website colours, footer,
+          contact details and business branding.
+        </p>
+
+        <RouterLink
+          to="/seller/website/theme"
+          class="secondary-button"
+        >
+          Customise Website
+        </RouterLink>
+      </section>
+
+      <!-- Store Summary -->
+
       <section class="store-summary">
         <div>
           <p class="eyebrow">Your Store</p>
+
           <h2>{{ store.name }}</h2>
-          <p>{{ store.tagline || 'Your Made Exclusif storefront' }}</p>
+
+          <p>
+            {{
+              store.tagline ||
+              'Your independent IVISION storefront'
+            }}
+          </p>
         </div>
 
         <span
@@ -158,7 +240,10 @@ onMounted(loadDashboard)
         </span>
       </section>
 
+      <!-- Business Approval Status -->
+
       <div v-if="!isApproved" class="message">
+
         <h2 v-if="store.status === 'pending'">
           Your application is under review
         </h2>
@@ -175,10 +260,15 @@ onMounted(loadDashboard)
           Product and order management will become available
           when your store is active.
         </p>
+
       </div>
 
       <template v-else>
+
+        <!-- Dashboard Statistics -->
+
         <div class="stats">
+
           <div class="stat-card">
             <span>Products on this page</span>
             <strong>{{ totalProducts }}</strong>
@@ -188,9 +278,13 @@ onMounted(loadDashboard)
             <span>Orders on this page</span>
             <strong>{{ totalOrders }}</strong>
           </div>
+
         </div>
 
+        <!-- Products and Orders Navigation -->
+
         <div class="tabs">
+
           <button
             type="button"
             :class="{ selected: activeTab === 'products' }"
@@ -206,19 +300,31 @@ onMounted(loadDashboard)
           >
             Orders
           </button>
+
         </div>
 
-        <p v-if="error" class="error" role="alert">
+        <p
+          v-if="error"
+          class="error"
+          role="alert"
+        >
           {{ error }}
         </p>
 
+        <!-- Product Management -->
+
         <section v-if="activeTab === 'products'">
+
           <div class="section-heading">
             <h2>My Products</h2>
           </div>
 
-          <div v-if="products.length" class="table-wrap">
+          <div
+            v-if="products.length"
+            class="table-wrap"
+          >
             <table>
+
               <thead>
                 <tr>
                   <th>Product</th>
@@ -229,12 +335,19 @@ onMounted(loadDashboard)
               </thead>
 
               <tbody>
+
                 <tr
                   v-for="product in products"
                   :key="product.id"
                 >
-                  <td>{{ product.name }}</td>
-                  <td>{{ product.category?.name || '—' }}</td>
+                  <td>
+                    {{ product.name }}
+                  </td>
+
+                  <td>
+                    {{ product.category?.name || '—' }}
+                  </td>
+
                   <td>
                     {{
                       product.min_price != null
@@ -242,20 +355,36 @@ onMounted(loadDashboard)
                         : '—'
                     }}
                   </td>
-                  <td>{{ product.is_featured ? 'Yes' : 'No' }}</td>
+
+                  <td>
+                    {{ product.is_featured ? 'Yes' : 'No' }}
+                  </td>
+
                 </tr>
+
               </tbody>
+
             </table>
           </div>
 
-          <p v-else>No products have been added yet.</p>
+          <p v-else>
+            No products have been added yet.
+          </p>
+
         </section>
 
+        <!-- Order Management -->
+
         <section v-else>
+
           <h2>Customer Orders</h2>
 
-          <div v-if="orders.length" class="table-wrap">
+          <div
+            v-if="orders.length"
+            class="table-wrap"
+          >
             <table>
+
               <thead>
                 <tr>
                   <th>Order</th>
@@ -267,12 +396,29 @@ onMounted(loadDashboard)
               </thead>
 
               <tbody>
-                <tr v-for="order in orders" :key="order.id">
-                  <td>#{{ order.id }}</td>
-                  <td>{{ order.status }}</td>
-                  <td>{{ order.payment_status }}</td>
-                  <td>{{ money(order.total) }}</td>
+
+                <tr
+                  v-for="order in orders"
+                  :key="order.id"
+                >
                   <td>
+                    #{{ order.id }}
+                  </td>
+
+                  <td>
+                    {{ order.status }}
+                  </td>
+
+                  <td>
+                    {{ order.payment_status }}
+                  </td>
+
+                  <td>
+                    {{ money(order.total) }}
+                  </td>
+
+                  <td>
+
                     <button
                       v-if="
                         nextStatus(order.status) &&
@@ -291,16 +437,26 @@ onMounted(loadDashboard)
                     </button>
 
                     <span v-else>—</span>
+
                   </td>
+
                 </tr>
+
               </tbody>
+
             </table>
           </div>
 
-          <p v-else>No customer orders yet.</p>
+          <p v-else>
+            No customer orders yet.
+          </p>
+
         </section>
+
       </template>
+
     </template>
+
   </main>
 </template>
 
@@ -475,4 +631,3 @@ td button:disabled {
   }
 }
 </style>
-

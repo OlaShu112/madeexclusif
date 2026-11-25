@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -176,8 +177,27 @@ class Store extends Model
         return $this->status === 'suspended';
     }
 
-    public function paymentSetting(): \Illuminate\Database\Eloquent\Relations\HasOne
+    /**
+     * Store payment configuration.
+     */
+    public function paymentSetting(): HasOne
     {
         return $this->hasOne(StorePaymentSetting::class);
+    }
+
+    /**
+     * Independent storefront website theme.
+     */
+    public function websiteTheme(): HasOne
+    {
+        return $this->hasOne(StoreTheme::class);
+    }
+
+    /**
+     * Media assets belonging to the independent storefront.
+     */
+    public function media(): HasMany
+    {
+        return $this->hasMany(StoreMedia::class);
     }
 }

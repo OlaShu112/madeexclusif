@@ -7,6 +7,7 @@ use App\Models\BusinessCategory;
 use App\Models\Category;
 use App\Models\Store;
 use App\Services\StoreNotificationService;
+use App\Services\WebsiteTemplateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,10 @@ class StoreController extends Controller
     public function show(string $slug): JsonResponse
     {
         $store = Store::active()
-            ->with('businessCategory:id,name,slug')
+            ->with([
+                'businessCategory:id,name,slug',
+                'websiteTheme',
+            ])
             ->where('slug', $slug)
             ->firstOrFail([
                 'id',
@@ -36,6 +40,7 @@ class StoreController extends Controller
                 'logo',
                 'accent',
                 'is_main',
+                'status',
             ]);
 
         return response()->json($store);
@@ -45,12 +50,16 @@ class StoreController extends Controller
      * Allow an authenticated user to create a store.
      * New stores require administrator approval.
      *
-     * Automatically register business application
-     * confirmation and administrator notifications.
+     * Automatically initialise the independent business
+     * website using its selected business category.
+     *
+     * Register business application confirmation
+     * and administrator notifications.
      */
     public function open(
         Request $request,
-        StoreNotificationService $notifications
+        StoreNotificationService $notifications,
+        WebsiteTemplateService $templates
     ): JsonResponse
     {
         $user = $request->user();
@@ -124,10 +133,13 @@ class StoreController extends Controller
                 $user,
                 $data,
                 $logoPath,
-                $notifications
+                $notifications,
+                $templates
             ) {
-                // Prevent simultaneous registrations
-                // by the same customer.
+                /*
+                 * Prevent simultaneous registrations
+                 * by the same customer.
+                 */
 
                 $lockedUser = $user->newQuery()
                     ->lockForUpdate()
@@ -139,7 +151,9 @@ class StoreController extends Controller
                     ]);
                 }
 
-                // Retrieve the selected business category.
+                /*
+                 * Retrieve the selected business category.
+                 */
 
                 $businessCategory = BusinessCategory::active()
                     ->lockForUpdate()
@@ -152,13 +166,17 @@ class StoreController extends Controller
                     ]);
                 }
 
-                // Create the store brand.
+                /*
+                 * Create the store brand.
+                 */
 
                 $brand = Brand::create([
                     'name' => $data['name'],
                 ]);
 
-                // Create the seller storefront.
+                /*
+                 * Create the independent seller storefront.
+                 */
 
                 $newStore = Store::create([
                     'user_id' => $user->id,
@@ -184,7 +202,35 @@ class StoreController extends Controller
                 ]);
 
                 /*
-                 * Register automatic business notifications.
+                 * Initialise the business payment settings.
+                 *
+                 * Checkout remains disabled until the
+                 * required payment configuration is completed.
+                 */
+
+                $newStore->paymentSetting()->create([
+                    'payment_mode' => $data['payment_mode'],
+
+                    'provider' => $data['payment_mode'] === 'platform'
+                        ? 'stripe_connect'
+                        : null,
+
+                    'status' => 'pending_setup',
+
+                    'checkout_enabled' => false,
+
+                    'preference_changed_at' => now(),
+                ]);
+
+                /*
+                 * Automatically initialise the independent
+                 * business website using its selected category.
+                 */
+
+                $templates->initialise($newStore);
+
+                /*
+                 * Register business application notifications.
                  *
                  * 1. Business application confirmation
                  *    to the store owner.
@@ -192,16 +238,6 @@ class StoreController extends Controller
                  * 2. New business application notification
                  *    to the marketplace administrator.
                  */
-
-                $newStore->paymentSetting()->create([
-                    'payment_mode' => $data['payment_mode'],
-                    'provider' => $data['payment_mode'] === 'platform'
-                        ? 'stripe_connect'
-                        : null,
-                    'status' => 'pending_setup',
-                    'checkout_enabled' => false,
-                    'preference_changed_at' => now(),
-                ]);
 
                 $notifications->applicationSubmitted($newStore);
 
@@ -216,11 +252,20 @@ class StoreController extends Controller
             throw $e;
         }
 
+        /*
+         * Return the newly registered business, including
+         * its category, payment settings and website theme.
+         */
+
         return response()->json([
             'message' =>
                 'Store created successfully. Your store is awaiting approval.',
 
-            'store' => $store->load('businessCategory', 'paymentSetting'),
+            'store' => $store->load(
+                'businessCategory',
+                'paymentSetting',
+                'websiteTheme'
+            ),
         ], 201);
     }
 
@@ -257,8 +302,10 @@ class StoreController extends Controller
             ->whereIn('status', $paidStatuses)
             ->sum('total');
 
-        // Retrieve product categories belonging
-        // to the seller's business category.
+        /*
+         * Retrieve product categories belonging
+         * to the seller's business category.
+         */
 
         $categories = Category::query()
             ->whereNotNull('business_category_id')

@@ -1,10 +1,10 @@
-
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/http'
 import { useCartStore } from '@/stores/cart'
 import { useAuthStore } from '@/stores/auth'
+import { useStorefrontStore } from '@/stores/storefront'
 import { money } from '@/utils/format'
 import ProductImage from '@/components/ProductImage.vue'
 import ProductCard from '@/components/ProductCard.vue'
@@ -12,6 +12,52 @@ import ProductCard from '@/components/ProductCard.vue'
 const route = useRoute()
 const cart = useCartStore()
 const auth = useAuthStore()
+const storefront = useStorefrontStore()
+
+/*
+|--------------------------------------------------------------------------
+| INDEPENDENT BUSINESS STOREFRONT
+|--------------------------------------------------------------------------
+*/
+
+const storeSlug = computed(
+  () => String(route.params.store || '')
+)
+
+const isIndependentStore = computed(
+  () => Boolean(storeSlug.value)
+)
+
+const businessName = computed(() =>
+  isIndependentStore.value
+    ? storefront.store?.slug === storeSlug.value
+      ? storefront.store.name
+      : product.value?.store?.slug === storeSlug.value
+        ? product.value.store.name
+        : 'Store'
+    : 'Made Exclusif'
+)
+
+const isPerfume = computed(() =>
+  !isIndependentStore.value ||
+  (
+    storefront.store?.slug === storeSlug.value &&
+    storefront.store?.business_category?.slug === 'perfume'
+  )
+)
+
+const shopLink = computed(() =>
+  isIndependentStore.value
+    ? {
+        name: 'store-shop',
+        params: {
+          store: storeSlug.value
+        }
+      }
+    : {
+        name: 'shop'
+      }
+)
 
 /*
 |--------------------------------------------------------------------------
@@ -131,6 +177,11 @@ async function load() {
   cartError.value = ''
   added.value = false
 
+  if (addedTimer) {
+    clearTimeout(addedTimer)
+    addedTimer = null
+  }
+
   product.value = null
   related.value = []
   variantId.value = null
@@ -139,8 +190,26 @@ async function load() {
   try {
     const slug = String(route.params.slug || '')
 
+    /*
+    |--------------------------------------------------------------------------
+    | STORE-SPECIFIC PRODUCT REQUEST
+    |--------------------------------------------------------------------------
+    |
+    | Independent business storefronts must supply
+    | their store slug to the Laravel catalogue API.
+    |
+    | The backend is responsible for enforcing
+    | product ownership and active store status.
+    |
+    */
+
     const res = await api(
-      `/products/${encodeURIComponent(slug)}`
+      `/products/${encodeURIComponent(slug)}`,
+      {
+        params: storeSlug.value
+          ? { store: storeSlug.value }
+          : {}
+      }
     )
 
     if (currentRequest !== requestNumber) {
@@ -149,25 +218,11 @@ async function load() {
 
     /*
     |--------------------------------------------------------------------------
-    | IMPORTANT FIX
+    | NORMALISE PRODUCT RESPONSE
     |--------------------------------------------------------------------------
     |
-    | Your Laravel CatalogController returns the product
-    | directly:
-    |
-    | {
-    |   "id": 1,
-    |   "name": "Nuit de Oud",
-    |   "variants": [...]
-    | }
-    |
-    | It does not return:
-    |
-    | {
-    |   "product": {...}
-    | }
-    |
-    | Support both formats.
+    | Laravel may return the product directly
+    | or inside a product/data property.
     |
     */
 
@@ -208,7 +263,7 @@ async function load() {
 
     /*
     |--------------------------------------------------------------------------
-    | AUTOMATICALLY SELECT FIRST AVAILABLE SIZE
+    | AUTOMATICALLY SELECT FIRST AVAILABLE OPTION
     |--------------------------------------------------------------------------
     */
 
@@ -227,8 +282,14 @@ async function load() {
 
     qty.value = 1
 
+    /*
+    |--------------------------------------------------------------------------
+    | DYNAMIC BROWSER TITLE
+    |--------------------------------------------------------------------------
+    */
+
     document.title =
-      `${item.name} · Made Exclusif`
+      `${item.name} · ${businessName.value}`
 
   } catch (error) {
     if (currentRequest !== requestNumber) {
@@ -236,7 +297,7 @@ async function load() {
     }
 
     console.error(
-      'Made Exclusif product loading failed:',
+      `${businessName.value} product loading failed:`,
       error
     )
 
@@ -245,7 +306,7 @@ async function load() {
     } else {
       loadError.value =
         error?.message ||
-        'Unable to load this fragrance. Please try again.'
+        'Unable to load this product. Please try again.'
     }
 
   } finally {
@@ -257,7 +318,7 @@ async function load() {
 
 /*
 |--------------------------------------------------------------------------
-| SELECT PRODUCT SIZE
+| SELECT PRODUCT OPTION
 |--------------------------------------------------------------------------
 */
 
@@ -313,14 +374,15 @@ function addToBag() {
 
   if (!canAddToCart.value) {
     cartError.value =
-      'Please select an available size and quantity.'
+      'Please select an available option and quantity.'
+
     return
   }
 
   try {
     /*
-    | Existing Pinia cart integration.
-    */
+     * Existing Pinia cart integration.
+     */
 
     cart.add(
       product.value,
@@ -336,17 +398,18 @@ function addToBag() {
 
     addedTimer = setTimeout(() => {
       added.value = false
+      addedTimer = null
     }, 3000)
 
   } catch (error) {
     console.error(
-      'Made Exclusif cart error:',
+      `${businessName.value} cart error:`,
       error
     )
 
     cartError.value =
       error?.message ||
-      'Unable to add this fragrance to your bag.'
+      'Unable to add this product to your bag.'
   }
 }
 
@@ -364,11 +427,18 @@ async function submitReview() {
     return
   }
 
+  const currentRequest = requestNumber
+
   try {
     await api(
       `/products/${encodeURIComponent(product.value.slug)}/reviews`,
       {
         method: 'POST',
+
+        params: storeSlug.value
+          ? { store: storeSlug.value }
+          : {},
+
         body: {
           rating: Number(review.value.rating),
           title: review.value.title.trim(),
@@ -377,18 +447,32 @@ async function submitReview() {
       }
     )
 
+    if (currentRequest !== requestNumber) {
+      return
+    }
+
     review.value = {
       rating: 5,
       title: '',
       body: ''
     }
 
+    const reloadRequest = requestNumber + 1
+
     await load()
+
+    if (reloadRequest !== requestNumber) {
+      return
+    }
 
     reviewMsg.value =
       'Thank you. Your review has been saved.'
 
   } catch (error) {
+    if (currentRequest !== requestNumber) {
+      return
+    }
+
     reviewErr.value =
       error?.message ||
       'Unable to submit your review.'
@@ -397,17 +481,56 @@ async function submitReview() {
 
 /*
 |--------------------------------------------------------------------------
-| WATCH PRODUCT ROUTE
+| WATCH PRODUCT AND BUSINESS ROUTE
 |--------------------------------------------------------------------------
+|
+| Reload the product when the customer navigates
+| to another product or independent business.
+|
 */
 
 watch(
-  () => route.params.slug,
+  () => [
+    route.params.store,
+    route.params.slug
+  ],
+
   () => {
+    reviewMsg.value = ''
+    reviewErr.value = ''
+
+    review.value = {
+      rating: 5,
+      title: '',
+      body: ''
+    }
+
     load()
   },
+
   {
     immediate: true
+  }
+)
+
+/*
+|--------------------------------------------------------------------------
+| WATCH BUSINESS NAME
+|--------------------------------------------------------------------------
+|
+| Update the browser title if the storefront
+| information becomes available after the product.
+|
+*/
+
+watch(
+  businessName,
+
+  name => {
+    if (product.value?.name) {
+      document.title =
+        `${product.value.name} · ${name}`
+    }
   }
 )
 
@@ -441,15 +564,15 @@ onUnmounted(() => {
       v-else-if="notFound"
       class="center"
     >
-      <h1>Fragrance not found</h1>
+      <h1>Product not found</h1>
 
       <p class="muted">
-        This fragrance may no longer be available.
+        This product may no longer be available.
       </p>
 
       <router-link
         class="btn btn--ghost"
-        to="/shop"
+        :to="shopLink"
       >
         Back to shop
       </router-link>
@@ -460,7 +583,7 @@ onUnmounted(() => {
       v-else-if="loadError"
       class="center"
     >
-      <h1>Unable to load fragrance</h1>
+      <h1>Unable to load product</h1>
 
       <p class="muted">
         {{ loadError }}
@@ -476,7 +599,7 @@ onUnmounted(() => {
 
       <router-link
         class="btn btn--ghost"
-        to="/shop"
+        :to="shopLink"
       >
         Back to shop
       </router-link>
@@ -499,8 +622,9 @@ onUnmounted(() => {
         <!-- Product information -->
         <div>
 
+          <!-- Business brand and product category -->
           <div class="eyebrow">
-            {{ product.brand?.name || 'Made Exclusif' }}
+            {{ product.brand?.name || businessName }}
 
             <template v-if="product.category?.name">
               · {{ product.category.name }}
@@ -524,8 +648,11 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <!-- Concentration -->
-          <p class="muted">
+          <!-- Fragrance-specific information -->
+          <p
+            v-if="isPerfume"
+            class="muted"
+          >
             {{ product.concentration || 'Fragrance' }}
 
             <template v-if="product.gender">
@@ -543,13 +670,13 @@ onUnmounted(() => {
             {{
               variant && variant.price != null
                 ? money(variant.price)
-                : 'Select an available size'
+                : 'Select an available option'
             }}
           </div>
 
-          <!-- Bottle sizes -->
+          <!-- Product options -->
           <div class="eyebrow">
-            Size
+            {{ isPerfume ? 'Size' : 'Options' }}
           </div>
 
           <div
@@ -567,7 +694,11 @@ onUnmounted(() => {
               :disabled="Number(v.stock ?? 0) < 1"
               @click="selectVariant(v)"
             >
-              {{ v.label || `${v.size_ml}ml` }}
+              {{
+                v.label ||
+                v.size_label ||
+                (v.size_ml ? `${v.size_ml}ml` : 'Standard')
+              }}
             </button>
           </div>
 
@@ -575,7 +706,7 @@ onUnmounted(() => {
             v-else
             class="muted"
           >
-            No bottle sizes are currently available.
+            No product options are currently available.
           </p>
 
           <!-- Stock information -->
@@ -590,7 +721,7 @@ onUnmounted(() => {
             v-if="variant && stock < 1"
             class="muted"
           >
-            This size is currently sold out.
+            This option is currently sold out.
           </p>
 
           <!-- Quantity and Add to Bag -->
@@ -638,7 +769,7 @@ onUnmounted(() => {
             >
               {{
                 !variant
-                  ? 'Select size'
+                  ? 'Select option'
                   : stock < 1
                     ? 'Sold out'
                     : 'Add to bag'
@@ -675,9 +806,12 @@ onUnmounted(() => {
           <!-- Fragrance notes -->
           <div
             v-if="
-              product.notes_top ||
-              product.notes_heart ||
-              product.notes_base
+              isPerfume &&
+              (
+                product.notes_top ||
+                product.notes_heart ||
+                product.notes_base
+              )
             "
             class="notes"
           >
@@ -730,7 +864,14 @@ onUnmounted(() => {
           class="review"
         >
           <span class="stars">
-            {{ '★'.repeat(Math.max(0, Math.min(5, Number(r.rating) || 0))) }}
+            {{
+              '★'.repeat(
+                Math.max(
+                  0,
+                  Math.min(5, Number(r.rating) || 0)
+                )
+              )
+            }}
           </span>
 
           <strong>{{ r.title }}</strong>
@@ -827,6 +968,7 @@ onUnmounted(() => {
           >
             Sign in
           </router-link>
+
           to write a review.
         </p>
       </section>

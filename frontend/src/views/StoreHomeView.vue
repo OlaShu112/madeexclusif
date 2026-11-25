@@ -1,17 +1,22 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useStorefrontStore } from '@/stores/storefront'
+import { api } from '@/api/http'
 
 const route = useRoute()
-const router = useRouter()
 const storefront = useStorefrontStore()
 
 const products = ref([])
-const productsLoading = ref(false)
-const productsError = ref('')
+const categories = ref([])
 
-const slug = computed(() => String(route.params.store || ''))
+const loading = ref(false)
+const productError = ref('')
+const categoryError = ref('')
+
+const slug = computed(
+  () => String(route.params.store || '')
+)
 
 const store = computed(() =>
   storefront.store?.slug === slug.value
@@ -19,212 +24,415 @@ const store = computed(() =>
     : null
 )
 
-const storeName = computed(() => store.value?.name || 'Our Store')
-
-const storeDescription = computed(() =>
-  store.value?.tagline || 'Discover our latest collection.'
+const theme = computed(
+  () => store.value?.website_theme || {}
 )
+
+const sections = computed(() => {
+  const defaults = [
+    {
+      type: 'hero',
+      enabled: true,
+      position: 1
+    },
+    {
+      type: 'categories',
+      title: 'Shop by Category',
+      enabled: true,
+      position: 2
+    },
+    {
+      type: 'featured_products',
+      title: 'Featured Products',
+      enabled: true,
+      position: 3
+    },
+    {
+      type: 'about_business',
+      title: 'About Us',
+      enabled: true,
+      position: 4
+    }
+  ]
+
+  const configured = theme.value.homepage_sections
+
+  return (
+    Array.isArray(configured)
+      ? configured
+      : defaults
+  )
+    .filter(section => section.enabled !== false)
+    .sort((a, b) => a.position - b.position)
+})
 
 const shopLink = computed(() => ({
   name: 'store-shop',
-  params: { store: slug.value },
+  params: {
+    store: slug.value
+  }
 }))
+
+function categoryLink(category) {
+  return {
+    ...shopLink.value,
+    query: {
+      category: category.slug
+    }
+  }
+}
+
+function productLink(product) {
+  return {
+    name: 'store-product',
+    params: {
+      store: slug.value,
+      slug: product.slug
+    }
+  }
+}
 
 watch(
   slug,
   async (value, _, onCleanup) => {
     let cancelled = false
-    onCleanup(() => { cancelled = true })
+
+    onCleanup(() => {
+      cancelled = true
+    })
 
     products.value = []
-    productsError.value = ''
-    productsLoading.value = true
+    categories.value = []
+    productError.value = ''
+    categoryError.value = ''
 
-    if (!value) {
-      productsLoading.value = false
-      return
+    if (!value) return
+
+    loading.value = true
+
+    const results = await Promise.allSettled([
+      api('/products', {
+        params: {
+          store: value,
+          featured: 1,
+          per_page: 8
+        }
+      }),
+
+      api('/filters', {
+        params: {
+          store: value
+        }
+      })
+    ])
+
+    if (cancelled) return
+
+    if (results[0].status === 'fulfilled') {
+      products.value =
+        results[0].value.data || []
+    } else {
+      productError.value =
+        'Unable to load featured products.'
     }
 
-    try {
-      const { api } = await import('@/api/http')
-      const result = await api(
-        `/products?store=${encodeURIComponent(value)}&featured=1`
-      )
-
-      if (cancelled) return
-
-      products.value = Array.isArray(result)
-        ? result
-        : Array.isArray(result?.data)
-          ? result.data
-          : []
-    } catch (error) {
-      if (!cancelled) {
-        productsError.value = 'Unable to load featured products.'
-      }
-    } finally {
-      if (!cancelled) productsLoading.value = false
+    if (results[1].status === 'fulfilled') {
+      categories.value =
+        results[1].value.categories || []
+    } else {
+      categoryError.value =
+        'Unable to load product categories.'
     }
+
+    loading.value = false
   },
   { immediate: true }
 )
-
-function viewProduct(product) {
-  router.push({
-    name: 'store-product',
-    params: {
-      store: slug.value,
-      slug: product.slug,
-    },
-  })
-}
 </script>
 
 <template>
-  <main class="store-home container">
-    <section v-if="storefront.notFound" class="store-message">
-      <h1>Store not found</h1>
-      <p>This store may no longer be available.</p>
-      <router-link to="/">Return to Made Exclusif</router-link>
-    </section>
+  <main v-if="store" class="store-home">
 
-    <section v-else>
-      <div class="store-hero">
+    <template
+      v-for="section in sections"
+      :key="section.type"
+    >
+
+      <section
+        v-if="section.type === 'hero'"
+        class="store-hero"
+      >
+
         <img
-          v-if="store?.logo_url"
+          v-if="store.logo_url"
           :src="store.logo_url"
-          :alt="storeName"
-          class="store-logo"
+          :alt="store.name"
+          class="hero-logo"
         />
 
-        <p class="store-eyebrow">Welcome to</p>
-        <h1>{{ storeName }}</h1>
-        <p>{{ storeDescription }}</p>
+        <p class="eyebrow">
+          Welcome to {{ store.name }}
+        </p>
 
-        <router-link :to="shopLink" class="shop-button">
-          Shop Collection
-        </router-link>
-      </div>
+        <h1>
+          {{ theme.hero_title || store.name }}
+        </h1>
 
-      <section class="featured-section">
+        <p class="hero-description">
+          {{
+            theme.hero_subtitle ||
+            store.tagline ||
+            'Discover our latest collection.'
+          }}
+        </p>
+
+        <RouterLink
+          :to="shopLink"
+          class="primary-button"
+        >
+          {{
+            theme.hero_button_text ||
+            'Shop Collection'
+          }}
+        </RouterLink>
+
+      </section>
+
+      <section
+        v-else-if="section.type === 'categories'"
+        class="homepage-section"
+      >
+
         <div class="section-heading">
-          <h2>Featured Products</h2>
-          <router-link :to="shopLink">View All</router-link>
+          <h2>
+            {{ section.title || 'Shop by Category' }}
+          </h2>
+
+          <RouterLink :to="shopLink">
+            View All
+          </RouterLink>
         </div>
 
-        <p v-if="productsLoading">Loading products...</p>
+        <p v-if="loading">Loading categories...</p>
 
-        <p v-else-if="productsError">{{ productsError }}</p>
+        <p v-else-if="categoryError">
+          {{ categoryError }}
+        </p>
 
-        <div v-else-if="products.length" class="product-grid">
-          <button
+        <div
+          v-else-if="categories.length"
+          class="category-grid"
+        >
+
+          <RouterLink
+            v-for="category in categories"
+            :key="category.id"
+            :to="categoryLink(category)"
+            class="category-card"
+          >
+            <h3>{{ category.name }}</h3>
+            <span>Explore Collection</span>
+          </RouterLink>
+
+        </div>
+
+        <p v-else>
+          Product categories will appear here.
+        </p>
+
+      </section>
+
+      <section
+        v-else-if="section.type === 'featured_products'"
+        class="homepage-section"
+      >
+
+        <div class="section-heading">
+          <h2>
+            {{ section.title || 'Featured Products' }}
+          </h2>
+
+          <RouterLink :to="shopLink">
+            View All
+          </RouterLink>
+        </div>
+
+        <p v-if="loading">Loading products...</p>
+
+        <p v-else-if="productError">
+          {{ productError }}
+        </p>
+
+        <div
+          v-else-if="products.length"
+          class="product-grid"
+        >
+
+          <RouterLink
             v-for="product in products"
             :key="product.id"
-            type="button"
-            class="product-tile"
-            @click="viewProduct(product)"
+            :to="productLink(product)"
+            class="product-card"
           >
+
             <div class="product-image">
+
               <img
                 v-if="product.image_url"
                 :src="product.image_url"
                 :alt="product.name"
                 loading="lazy"
               />
+
               <span v-else>View Product</span>
+
             </div>
+
             <h3>{{ product.name }}</h3>
+
             <p v-if="product.min_price != null">
               From £{{ Number(product.min_price).toFixed(2) }}
             </p>
-          </button>
+
+          </RouterLink>
+
         </div>
 
-        <p v-else>No featured products are available yet.</p>
+        <p v-else>
+          No featured products are available yet.
+        </p>
+
       </section>
-    </section>
+
+      <section
+        v-else-if="section.type === 'about_business'"
+        class="about-section"
+      >
+        <h2>{{ section.title || 'About Us' }}</h2>
+
+        <p>
+          {{
+            theme.footer_description ||
+            store.tagline ||
+            `Welcome to ${store.name}.`
+          }}
+        </p>
+      </section>
+
+    </template>
   </main>
 </template>
 
 <style scoped>
 .store-home {
-  padding-top: 32px;
-  padding-bottom: 64px;
+  max-width: 1440px;
+  margin: auto;
+  padding: 30px 24px 65px;
 }
 
 .store-hero {
+  padding: 90px 25px;
   text-align: center;
-  padding: 70px 20px;
-  background: #f8f6f2;
-  border-radius: 12px;
+  background: var(--store-secondary);
+  color: var(--store-secondary-text);
+  border-radius: 10px;
 }
 
-.store-logo {
-  max-width: 130px;
-  max-height: 90px;
+.hero-logo {
+  max-width: 140px;
+  max-height: 100px;
   object-fit: contain;
   margin-bottom: 20px;
 }
 
-.store-eyebrow {
+.eyebrow {
   text-transform: uppercase;
   letter-spacing: 3px;
   font-size: 12px;
-  color: #777;
 }
 
 .store-hero h1 {
-  font-size: clamp(30px, 5vw, 56px);
-  margin: 12px 0;
+  font-size: clamp(32px, 5vw, 65px);
+  margin: 20px 0;
+  color: inherit;
 }
 
-.store-hero p {
-  color: #666;
+.hero-description {
+  max-width: 700px;
+  margin: auto;
+  line-height: 1.8;
+  white-space: pre-wrap;
 }
 
-.shop-button {
+.primary-button {
   display: inline-block;
-  margin-top: 24px;
-  padding: 13px 30px;
-  background: #222;
-  color: white;
-  text-decoration: none;
+  padding: 15px 32px;
+  margin-top: 28px;
+  background: var(--store-primary);
+  color: var(--store-primary-text);
   border-radius: 5px;
+  text-decoration: none;
 }
 
-.featured-section {
-  margin-top: 55px;
+.homepage-section {
+  margin: 60px 0;
 }
 
 .section-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
   margin-bottom: 25px;
 }
 
+.section-heading a {
+  color: inherit;
+}
+
+.category-grid,
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
   gap: 22px;
 }
 
-.product-tile {
-  text-align: left;
-  border: 1px solid #eee;
-  background: white;
+.category-card {
+  padding: 40px 20px;
+  background: var(--store-secondary);
+  color: var(--store-secondary-text);
   border-radius: 8px;
+  text-decoration: none;
+  text-align: center;
+}
+
+.category-card h3 {
+  color: inherit;
+}
+
+.category-card span {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.product-card {
   padding: 12px;
-  cursor: pointer;
+  border: 1px solid #dddddd;
+  border-radius: 8px;
+  background: var(--store-background);
+  color: var(--store-text);
+  text-decoration: none;
 }
 
 .product-image {
   aspect-ratio: 1;
-  background: #f6f6f6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #f5f5f5;
+  color: #222222;
+  display: grid;
+  place-items: center;
   overflow: hidden;
 }
 
@@ -234,26 +442,43 @@ function viewProduct(product) {
   object-fit: contain;
 }
 
-.product-tile h3 {
-  margin: 14px 0 6px;
-  font-size: 15px;
+.product-card h3 {
+  margin: 15px 0 8px;
+  color: inherit;
 }
 
-.store-message {
+.about-section {
+  margin-top: 60px;
+  padding: 50px 25px;
   text-align: center;
-  padding: 90px 20px;
+  background: var(--store-secondary);
+  color: var(--store-secondary-text);
+  border-radius: 8px;
+}
+
+.about-section p {
+  max-width: 800px;
+  margin: 20px auto 0;
+  line-height: 1.8;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 900px) {
+  .category-grid,
   .product-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 480px) {
+  .category-grid,
   .product-grid {
     grid-template-columns: 1fr;
   }
+
+  .store-hero {
+    padding: 55px 20px;
+  }
 }
 </style>
-
