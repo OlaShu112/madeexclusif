@@ -1,6 +1,14 @@
 <script setup>
 import { ref } from 'vue'
 import { api } from '@/api/http'
+import { useBusinessContext } from '@/composables/useBusinessContext'
+
+const {
+  businessName,
+  storeSlug,
+  isIndependentStore,
+  loginRoute
+} = useBusinessContext()
 
 const email = ref('')
 const busy = ref(false)
@@ -19,6 +27,10 @@ async function submit() {
       method: 'POST',
       body: {
         email: email.value.trim(),
+
+        store: isIndependentStore.value
+          ? storeSlug.value
+          : null,
       },
     })
 
@@ -33,9 +45,12 @@ async function submit() {
 </script>
 
 <template>
-  <main class="container section recovery-page">
+  <main
+    class="container section recovery-page"
+    :class="{ 'business-recovery': isIndependentStore }"
+  >
 
-    <p class="eyebrow">Made Exclusif</p>
+    <p class="eyebrow">{{ businessName }}</p>
 
     <h1>Forgot Your Password?</h1>
 
@@ -90,7 +105,7 @@ async function submit() {
       Remember your password?
 
       <router-link
-        :to="{ name: 'login' }"
+        :to="loginRoute()"
         class="linkbtn"
       >
         Back to Sign In
@@ -147,5 +162,27 @@ h1 {
 button:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+.business-recovery {
+  color: var(--store-text);
+}
+
+.business-recovery .eyebrow,
+.business-recovery h1,
+.business-recovery label,
+.business-recovery .linkbtn {
+  color: var(--store-text);
+}
+
+.business-recovery .btn {
+  background: var(--store-primary);
+  color: var(--store-primary-text);
+  border-color: var(--store-primary);
+}
+
+.business-recovery .input:focus {
+  outline: 2px solid var(--store-primary);
+  outline-offset: 2px;
 }
 </style>

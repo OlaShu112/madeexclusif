@@ -150,3 +150,11 @@ api/public/storage
 
 # IDE
 .idea/
+
+# Temporary editor and backup files
+*.sb-*
+*.bak
+*.backup
+*.swp
+*.tmp
+.DS_Store

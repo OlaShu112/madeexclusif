@@ -2,10 +2,20 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useBusinessContext } from '@/composables/useBusinessContext'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+
+const {
+  businessName,
+  storeSlug,
+  isIndependentStore,
+  registerRoute,
+  forgotPasswordRoute,
+  safeRedirect
+} = useBusinessContext()
 
 const form = reactive({
   email: '',
@@ -23,20 +33,17 @@ async function submit() {
   error.value = ''
 
   try {
-    await auth.login(form)
+    await auth.login({
+      ...form,
+      portal: 'customer',
+      store: isIndependentStore.value
+        ? storeSlug.value
+        : null
+    })
 
-    const redirect = route.query.redirect
-
-    if (
-      typeof redirect === 'string' &&
-      redirect.startsWith('/') &&
-      !redirect.startsWith('//') &&
-      !redirect.startsWith('/\\')
-    ) {
-      await router.push(redirect)
-    } else {
-      await router.push({ name: 'account' })
-    }
+    await router.push(
+      safeRedirect(route.query.redirect)
+    )
 
   } catch (e) {
     error.value = e.message || 'Unable to sign in.'
@@ -47,16 +54,23 @@ async function submit() {
 </script>
 
 <template>
-  <main class="container section login-page">
+  <main
+    class="container section login-page"
+    :class="{ 'business-login': isIndependentStore }"
+  >
 
     <h1>Sign In</h1>
 
     <p class="muted introduction">
-      Welcome back to Made Exclusif.
+      Welcome back to {{ businessName }}.
       Sign in to access your account.
     </p>
 
-    <div v-if="error" class="alert" role="alert">
+    <div
+      v-if="error"
+      class="alert"
+      role="alert"
+    >
       {{ error }}
     </div>
 
@@ -64,7 +78,9 @@ async function submit() {
 
       <div class="field">
 
-        <label for="e">Email Address</label>
+        <label for="e">
+          Email Address
+        </label>
 
         <input
           id="e"
@@ -79,7 +95,9 @@ async function submit() {
 
       <div class="field">
 
-        <label for="p">Password</label>
+        <label for="p">
+          Password
+        </label>
 
         <input
           id="p"
@@ -105,12 +123,12 @@ async function submit() {
 
         </label>
 
-        <router-link
-          :to="{ name: 'forgot-password' }"
+        <RouterLink
+          :to="forgotPasswordRoute(route.query)"
           class="linkbtn"
         >
           Forgot Password?
-        </router-link>
+        </RouterLink>
 
       </div>
 
@@ -128,12 +146,12 @@ async function submit() {
 
       New here?
 
-      <router-link
-        :to="{ name: 'register', query: route.query }"
+      <RouterLink
+        :to="registerRoute(route.query)"
         class="linkbtn"
       >
         Create an Account
-      </router-link>
+      </RouterLink>
 
     </p>
 
@@ -175,5 +193,37 @@ async function submit() {
 button:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+/* Independent business theme */
+
+.business-login {
+  color: var(--store-text);
+}
+
+.business-login h1,
+.business-login label,
+.business-login .linkbtn {
+  color: var(--store-text);
+}
+
+.business-login .muted {
+  color: var(--store-text);
+  opacity: 0.8;
+}
+
+.business-login .btn {
+  background: var(--store-primary);
+  color: var(--store-primary-text);
+  border-color: var(--store-primary);
+}
+
+.business-login .input {
+  font-family: inherit;
+}
+
+.business-login .input:focus {
+  outline: 2px solid var(--store-primary);
+  outline-offset: 2px;
 }
 </style>

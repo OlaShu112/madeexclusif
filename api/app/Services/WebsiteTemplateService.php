@@ -314,7 +314,24 @@ class WebsiteTemplateService
 
             'navigation_items' => $this->navigation($store),
 
+            /*
+             * Default header and footer layout settings.
+             *
+             * Header layout options:
+             * - double_row
+             * - single_row
+             *
+             * Footer layout options:
+             * - standard
+             * - classic
+             *
+             * Both preferences are stored in the existing
+             * header_settings JSON configuration.
+             */
+
             'header_settings' => [
+                'layout' => 'double_row',
+                'footer_layout' => 'standard',
                 'show_logo' => true,
                 'show_business_name' => true,
                 'show_search' => true,

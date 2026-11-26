@@ -7,6 +7,7 @@ use App\Models\Store;
 use App\Models\ProductVariant;
 use App\Services\StripeCheckout;
 use App\Services\TransactionalEmailService;
+use App\Services\StoreCustomerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -682,14 +683,18 @@ class OrderController extends Controller
     */
 
     public function index(
-        Request $request
+        Request $request,
+        StoreCustomerService $customers
     ): JsonResponse {
 
+        $store = $this->resolveCustomerStore(
+            $request,
+            $customers
+        );
+
         $orders = Order::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
+            ->where('user_id', $request->user()->id)
+            ->where('store_id', $store->id)
             ->with('items')
             ->latest('id')
             ->paginate(20);
@@ -705,18 +710,58 @@ class OrderController extends Controller
 
     public function show(
         Request $request,
-        string $number
+        string $number,
+        StoreCustomerService $customers
     ): JsonResponse {
 
+        $store = $this->resolveCustomerStore(
+            $request,
+            $customers
+        );
+
         $order = Order::query()
-            ->where(
-                'user_id',
-                $request->user()->id
-            )
+            ->where('user_id', $request->user()->id)
+            ->where('store_id', $store->id)
             ->where('number', $number)
             ->with('items')
             ->firstOrFail();
 
         return response()->json($order);
+    }
+
+    private function resolveCustomerStore(
+        Request $request,
+        StoreCustomerService $customers
+    ): Store {
+
+        $data = $request->validate([
+            'store' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        $store = ! empty($data['store'])
+            ? $customers->resolveStore($data['store'])
+            : Store::main();
+
+        abort_unless(
+            $store->isActive(),
+            404,
+            'Business unavailable.'
+        );
+
+        $customers->associate(
+            $store,
+            $request->user()
+        );
+
+        $customers->requireActiveCustomer(
+            $store,
+            $request->user()
+        );
+
+        return $store;
     }
 }

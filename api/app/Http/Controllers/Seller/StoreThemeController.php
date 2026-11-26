@@ -138,9 +138,6 @@ class StoreThemeController extends Controller
 
     /**
      * Publish the seller's website configuration.
-     *
-     * Apply the saved draft to the live website
-     * and record the publication timestamp.
      */
     public function publish(
         Request $request,
@@ -226,11 +223,15 @@ class StoreThemeController extends Controller
             |--------------------------------------------------------------------------
             | Header settings
             |--------------------------------------------------------------------------
+            |
+            | Header and footer layout preferences are stored
+            | within the existing header_settings JSON column.
+            |
             */
 
             'header_settings' => [
                 'sometimes',
-                'array:show_logo,show_business_name,show_search,show_account,show_cart,sticky_header',
+                'array:show_logo,show_business_name,show_search,show_account,show_cart,sticky_header,layout,footer_layout',
             ],
 
             'header_settings.show_logo' => [
@@ -261,6 +262,26 @@ class StoreThemeController extends Controller
             'header_settings.sticky_header' => [
                 'sometimes',
                 'boolean',
+            ],
+
+            /*
+             * Header layout preference.
+             */
+
+            'header_settings.layout' => [
+                'sometimes',
+                'string',
+                'in:double_row,single_row',
+            ],
+
+            /*
+             * Footer layout preference.
+             */
+
+            'header_settings.footer_layout' => [
+                'sometimes',
+                'string',
+                'in:standard,classic',
             ],
 
             /*
@@ -607,6 +628,9 @@ class StoreThemeController extends Controller
             /*
              * Preserve existing header settings when
              * only individual options are submitted.
+             *
+             * This also preserves header and footer
+             * layout preferences.
              */
 
             if (isset($data['header_settings'])) {

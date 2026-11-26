@@ -128,6 +128,11 @@ class Store extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function customers(): HasMany
+    {
+        return $this->hasMany(StoreCustomer::class);
+    }
+
     public function emailLogs(): HasMany
     {
         return $this->hasMany(EmailLog::class);

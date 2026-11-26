@@ -3,8 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\EmailLog;
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +16,10 @@ use Throwable;
 
 class SendTransactionalEmail implements ShouldQueue
 {
+    use Dispatchable;
+    use InteractsWithQueue;
     use Queueable;
+    use SerializesModels;
 
     public int $tries = 3;
 

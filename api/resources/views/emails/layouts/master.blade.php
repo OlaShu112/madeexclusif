@@ -1,3 +1,15 @@
+@php
+    $emailBusinessName =
+        $businessName
+        ?? ($store?->name ?? 'Made Exclusif');
+
+    $emailBusinessLogo =
+        $store?->logo_url ?? null;
+
+    $independentBusiness =
+        isset($store) && !$store->is_main;
+@endphp
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -164,13 +176,34 @@
                     <tr>
                         <td class="header">
 
+                            @if($emailBusinessLogo)
+                                <img
+                                    src="{{ $emailBusinessLogo }}"
+                                    alt="{{ $emailBusinessName }}"
+                                    width="90"
+                                    style="max-width:90px;
+                                           height:auto;
+                                           margin-bottom:15px;"
+                                >
+                            @endif
+
                             <p class="brand">
-                                MADE EXCLUSIF
+                                {{ strtoupper($emailBusinessName) }}
                             </p>
 
                             <p class="tagline">
-                                EXCEPTIONAL PRODUCTS.
-                                EXCEPTIONAL BUSINESSES.
+
+                                @if($independentBusiness)
+
+                                    {{ $store->tagline ?? '' }}
+
+                                @else
+
+                                    EXCEPTIONAL PRODUCTS.
+                                    EXCEPTIONAL BUSINESSES.
+
+                                @endif
+
                             </p>
 
                         </td>
@@ -186,7 +219,7 @@
                             <p>
                                 Kind regards,<br>
                                 <strong>
-                                    The Made Exclusif Team
+                                    The {{ $emailBusinessName }} Team
                                 </strong>
                             </p>
 
@@ -199,7 +232,7 @@
                         <td class="footer">
 
                             <p class="footer-brand">
-                                MADE EXCLUSIF
+                                {{ strtoupper($emailBusinessName) }}
                             </p>
 
                             <p>
@@ -209,7 +242,7 @@
 
                             <p>
                                 &copy; {{ date('Y') }}
-                                Made Exclusif.
+                                {{ $emailBusinessName }}.
                                 All rights reserved.
                             </p>
 
@@ -217,6 +250,14 @@
                                 This is an automated
                                 transactional email.
                             </p>
+
+                            @if($independentBusiness)
+
+                                <p>
+                                    Powered by IVISION
+                                </p>
+
+                            @endif
 
                         </td>
                     </tr>

@@ -95,6 +95,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role === 'admin';
     }
 
+    public function storeCustomers(): HasMany
+    {
+    return $this->hasMany(StoreCustomer::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Database Relationships

@@ -1,8 +1,12 @@
+
 <?php
 
 namespace App\Http\Controllers;
 
+use App\Models\Store;
 use App\Models\User;
+use App\Notifications\ResetPasswordNotification;
+use App\Services\StoreCustomerService;
 use App\Services\TransactionalEmailService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
@@ -16,23 +20,44 @@ use Throwable;
 
 class PasswordResetController extends Controller
 {
-    /**
-     * Send a password reset link.
-     */
     public function forgotPassword(
-        Request $request
+        Request $request,
+        StoreCustomerService $customers
     ): JsonResponse {
 
-        $request->validate([
+        $data = $request->validate([
             'email' => [
                 'required',
                 'email',
                 'max:255',
             ],
+
+            'store' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ]);
 
+        $store = ! empty($data['store'])
+            ? $customers->resolveStore($data['store'])
+            : null;
+
         Password::sendResetLink(
-            $request->only('email')
+            $request->only('email'),
+
+            function (
+                User $user,
+                string $token
+            ) use ($store): void {
+
+                $user->notify(
+                    new ResetPasswordNotification(
+                        $token,
+                        $store?->id
+                    )
+                );
+            }
         );
 
         return response()->json([
@@ -41,16 +66,13 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    /**
-     * Reset the user's password and register
-     * an account security notification.
-     */
     public function resetPassword(
         Request $request,
-        TransactionalEmailService $emails
+        TransactionalEmailService $emails,
+        StoreCustomerService $customers
     ): JsonResponse {
 
-        $request->validate([
+        $data = $request->validate([
             'token' => [
                 'required',
                 'string',
@@ -70,7 +92,17 @@ class PasswordResetController extends Controller
                     ->numbers()
                     ->symbols(),
             ],
+
+            'store' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
         ]);
+
+        $store = ! empty($data['store'])
+            ? $customers->resolveStore($data['store'])
+            : null;
 
         $resetUser = null;
 
@@ -93,15 +125,12 @@ class PasswordResetController extends Controller
                     $user,
                     $password
                 ) {
-
                     $user->forceFill([
                         'password' => Hash::make($password),
 
                         'remember_token' => Str::random(60),
 
                     ])->save();
-
-                    // Revoke existing Sanctum API tokens.
 
                     $user->tokens()->delete();
                 });
@@ -113,23 +142,19 @@ class PasswordResetController extends Controller
         );
 
         if ($status !== Password::PASSWORD_RESET) {
+
             return response()->json([
                 'message' =>
                     'The password reset link is invalid or has expired.',
             ], 422);
         }
 
-        /*
-         * Register the password changed notification
-         * only after a successful password reset.
-         *
-         * An email queue failure must not prevent
-         * the customer from using their new password.
-         */
-
         if ($resetUser instanceof User) {
 
             try {
+
+                $businessName =
+                    $store?->name ?? 'Made Exclusif';
 
                 $emails->queue(
 
@@ -143,13 +168,16 @@ class PasswordResetController extends Controller
                         $resetUser->email,
 
                     subject:
-                        'Security Alert: Your Password Has Been Changed | Made Exclusif',
+                        "Security Alert: Your Password Has Been Changed | {$businessName}",
 
                     recipientName:
                         $resetUser->name,
 
                     userId:
-                        $resetUser->id
+                        $resetUser->id,
+
+                    storeId:
+                        $store?->id
                 );
 
             } catch (Throwable $exception) {

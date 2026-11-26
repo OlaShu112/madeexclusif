@@ -169,6 +169,8 @@ function applyResponse(response) {
     ...theme,
 
     header_settings: {
+      layout: 'double_row',
+      footer_layout: 'standard',
       show_logo: true,
       show_business_name: true,
       show_search: true,
@@ -648,6 +650,38 @@ onMounted(loadTheme)
 
           <template v-if="activeSection === 'header'">
 
+            <div class="setting-card">
+
+              <label for="header-layout">
+                Header Layout
+              </label>
+
+              <select
+                id="header-layout"
+                v-model="form.header_settings.layout"
+              >
+                <option value="double_row">
+                  Spacious — Double Row
+                </option>
+
+                <option value="single_row">
+                  Classic — Single Row
+                </option>
+              </select>
+
+              <small v-if="form.header_settings.layout === 'single_row'">
+                A compact, elegant header inspired by Made Exclusif.
+                Branding, navigation and customer controls appear
+                together in a single desktop row.
+              </small>
+
+              <small v-else>
+                A spacious header with a larger search field
+                and a separate navigation row.
+              </small>
+
+            </div>
+
             <label
               v-for="field in headerFields"
               :key="field.key"
@@ -871,6 +905,27 @@ onMounted(loadTheme)
           <!-- FOOTER -->
 
           <template v-if="activeSection === 'footer'">
+
+            <div class="setting-card">
+
+              <label for="footer-layout">
+                Footer Layout
+              </label>
+
+              <select
+                id="footer-layout"
+                v-model="form.header_settings.footer_layout"
+              >
+                <option value="standard">
+                  Standard — Existing Footer
+                </option>
+
+                <option value="classic">
+                  Classic — Professional Footer
+                </option>
+              </select>
+
+            </div>
 
             <label for="footer-description">
               Business description

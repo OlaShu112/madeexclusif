@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Controllers;
@@ -5,40 +6,58 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Store;
 use App\Models\User;
+use App\Services\StoreCustomerService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
     private const TOKEN_NAME = 'storefront';
 
-    /**
-     * Register a customer account.
-     */
     public function register(
-        RegisterRequest $request
+        RegisterRequest $request,
+        StoreCustomerService $customers
     ): JsonResponse {
-        $user = User::create(
-            $request->safe()->only([
-                'name',
-                'email',
-                'password',
-            ])
+
+        $store = $this->resolveBusiness(
+            $request,
+            $customers
         );
+
+        $user = DB::transaction(function () use (
+            $request,
+            $store,
+            $customers
+        ) {
+            $user = User::create(
+                $request->safe()->only([
+                    'name',
+                    'email',
+                    'password',
+                ])
+            );
+
+            if ($store) {
+                $customers->associate($store, $user);
+            }
+
+            return $user;
+        });
 
         event(new Registered($user));
 
         return $this->tokenResponse($user, 201);
     }
 
-    /**
-     * Exchange valid credentials for an API token.
-     */
     public function login(
-        LoginRequest $request
+        LoginRequest $request,
+        StoreCustomerService $customers
     ): JsonResponse {
+
         $portal = $request->validate([
             'portal' => [
                 'nullable',
@@ -52,28 +71,38 @@ class AuthController extends Controller
             abort(403, 'Administrator access is required.');
         }
 
-        if ($portal === 'seller') {
-
-            if ($user->isAdmin()) {
-                abort(403, 'Please use the administrator portal.');
-            }
-
-            // Business applicants may authenticate to
-            // complete onboarding or track their application.
-            // Protected seller operations remain restricted
-            // by the EnsureSeller middleware.
+        if ($portal === 'seller' && $user->isAdmin()) {
+            abort(403, 'Please use the administrator portal.');
         }
 
         if ($portal === 'customer' && $user->isAdmin()) {
-            abort(403, 'Please sign in through the administrator portal.');
+            abort(
+                403,
+                'Please sign in through the administrator portal.'
+            );
+        }
+
+        if ($portal === 'customer') {
+
+            $store = $this->resolveBusiness(
+                $request,
+                $customers
+            );
+
+            if ($store) {
+
+                $customers->associate($store, $user);
+
+                $customers->requireActiveCustomer(
+                    $store,
+                    $user
+                );
+            }
         }
 
         return $this->tokenResponse($user);
     }
 
-    /**
-     * Return the authenticated user.
-     */
     public function me(
         Request $request
     ): JsonResponse {
@@ -82,12 +111,10 @@ class AuthController extends Controller
         );
     }
 
-    /**
-     * Revoke the current authentication token.
-     */
     public function logout(
         Request $request
     ): JsonResponse {
+
         $request->user()
             ->currentAccessToken()
             ->delete();
@@ -97,16 +124,40 @@ class AuthController extends Controller
         ]);
     }
 
+    private function resolveBusiness(
+        Request $request,
+        StoreCustomerService $customers
+    ): ?Store {
+
+        $data = $request->validate([
+            'store' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
+
+        if (empty($data['store'])) {
+            return null;
+        }
+
+        return $customers->resolveStore(
+            $data['store']
+        );
+    }
+
     private function tokenResponse(
         User $user,
         int $status = 200
     ): JsonResponse {
+
         return response()->json([
             'user' => new UserResource($user),
 
             'token' => $user
                 ->createToken(self::TOKEN_NAME)
                 ->plainTextToken,
+
         ], $status);
     }
 }

@@ -3,9 +3,18 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '@/api/http'
 import { useAuthStore } from '@/stores/auth'
+import { useBusinessContext } from '@/composables/useBusinessContext'
 
 const route = useRoute()
 const auth = useAuthStore()
+
+const {
+  businessName,
+  storeSlug,
+  isIndependentStore,
+  loginRoute,
+  forgotPasswordRoute
+} = useBusinessContext()
 
 const form = reactive({
   token: typeof route.query.token === 'string'
@@ -41,7 +50,13 @@ async function submit() {
   try {
     const response = await api('/reset-password', {
       method: 'POST',
-      body: { ...form },
+      body: {
+        ...form,
+
+        store: isIndependentStore.value
+          ? storeSlug.value
+          : null,
+      },
     })
 
     await auth.logout()
@@ -62,9 +77,12 @@ async function submit() {
 </script>
 
 <template>
-  <main class="container section recovery-page">
+  <main
+    class="container section recovery-page"
+    :class="{ 'business-recovery': isIndependentStore }"
+  >
 
-    <p class="eyebrow">Made Exclusif</p>
+    <p class="eyebrow">{{ businessName }}</p>
 
     <h1>Reset Your Password</h1>
 
@@ -73,7 +91,7 @@ async function submit() {
       <p>{{ success }}</p>
 
       <router-link
-        :to="{ name: 'login' }"
+        :to="loginRoute()"
         class="btn btn--block"
       >
         Sign In
@@ -86,7 +104,7 @@ async function submit() {
       <p>Your password reset link is invalid or incomplete.</p>
 
       <router-link
-        :to="{ name: 'forgot-password' }"
+        :to="forgotPasswordRoute()"
         class="linkbtn"
       >
         Request a New Reset Link
@@ -97,7 +115,8 @@ async function submit() {
     <template v-else>
 
       <p class="muted">
-        Create a new secure password for your Made Exclusif account.
+        Create a new secure password for your
+        {{ businessName }} account.
       </p>
 
       <div v-if="error" class="alert" role="alert">
@@ -196,7 +215,7 @@ async function submit() {
     <p class="back-link">
 
       <router-link
-        :to="{ name: 'login' }"
+        :to="loginRoute()"
         class="linkbtn"
       >
         Back to Sign In
@@ -278,5 +297,27 @@ h1 {
 button:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+.business-recovery {
+  color: var(--store-text);
+}
+
+.business-recovery .eyebrow,
+.business-recovery h1,
+.business-recovery label,
+.business-recovery .linkbtn {
+  color: var(--store-text);
+}
+
+.business-recovery .btn {
+  background: var(--store-primary);
+  color: var(--store-primary-text);
+  border-color: var(--store-primary);
+}
+
+.business-recovery .input:focus {
+  outline: 2px solid var(--store-primary);
+  outline-offset: 2px;
 }
 </style>

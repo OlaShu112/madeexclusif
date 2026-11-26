@@ -1,3 +1,4 @@
+
 import {
   createRouter,
   createWebHistory,
@@ -14,6 +15,7 @@ import { useAuthStore } from '@/stores/auth'
  * - Independent portal authentication
  * - Main Made Exclusif storefront
  * - Independent business storefronts
+ * - Business-specific customer authentication
  * - Customer accounts and checkout
  * - Password recovery
  * - Independent seller portal
@@ -149,6 +151,9 @@ const routes = [
     },
 
     children: [
+
+      // Business homepage
+
       {
         path: '',
         name: 'store-home',
@@ -156,6 +161,8 @@ const routes = [
           import('@/views/StoreHomeView.vue'),
         props: true,
       },
+
+      // Business shop
 
       {
         path: 'shop',
@@ -165,6 +172,8 @@ const routes = [
         props: true,
       },
 
+      // Business custom pages
+
       {
         path: 'pages/:page',
         name: 'store-page',
@@ -172,12 +181,71 @@ const routes = [
           import('@/views/StorePageView.vue'),
       },
 
+      // Business product details
+
       {
         path: 'product/:slug',
         name: 'store-product',
         component: () =>
           import('@/views/ProductView.vue'),
         props: true,
+      },
+
+      // Business customer login
+
+      {
+        path: 'login',
+        name: 'store-login',
+        component: () =>
+          import('@/views/LoginView.vue'),
+
+        meta: {
+          guestOnly: true,
+        },
+      },
+
+      // Business customer registration
+
+      {
+        path: 'register',
+        name: 'store-register',
+        component: () =>
+          import('@/views/RegisterView.vue'),
+
+        meta: {
+          guestOnly: true,
+        },
+      },
+
+      // Business password recovery
+
+      {
+        path: 'forgot-password',
+        name: 'store-forgot-password',
+        component: () =>
+          import('@/views/ForgotPasswordView.vue'),
+      },
+
+      // Business password reset
+
+      {
+        path: 'reset-password',
+        name: 'store-reset-password',
+        component: () =>
+          import('@/views/ResetPasswordView.vue'),
+      },
+
+      // Business customer account
+
+      {
+        path: 'account',
+        name: 'store-account',
+        component: () =>
+          import('@/views/AccountView.vue'),
+
+        meta: {
+          auth: true,
+        },
       },
     ],
   },
@@ -205,7 +273,7 @@ const routes = [
       import('@/views/OrderSuccessView.vue'),
   },
 
-  // Customer authentication
+  // Made Exclusif customer authentication
 
   {
     path: '/login',
@@ -229,7 +297,7 @@ const routes = [
     },
   },
 
-  // Password recovery
+  // Made Exclusif password recovery
 
   {
     path: '/forgot-password',
@@ -245,7 +313,7 @@ const routes = [
       import('@/views/ResetPasswordView.vue'),
   },
 
-  // Customer account
+  // Made Exclusif customer account
 
   {
     path: '/account',
@@ -304,7 +372,7 @@ const routes = [
           import('@/views/SellerView.vue'),
       },
 
-      // Independent website theme management
+      // Independent website pages management
 
       {
         path: 'website/pages',
@@ -312,6 +380,8 @@ const routes = [
         component: () =>
           import('@/views/seller/website/PagesView.vue'),
       },
+
+      // Independent website theme management
 
       {
         path: 'website/theme',
@@ -451,7 +521,27 @@ router.beforeEach((to) => {
     to.path === '/seller' ||
     to.path.startsWith('/seller/')
 
+  const storefrontRoute =
+    to.meta.layout === 'storefront' &&
+    Boolean(to.params.store)
+
+  // Protect authenticated pages
+
   if (to.meta.auth && !auth.user) {
+
+    if (storefrontRoute) {
+      return {
+        name: 'store-login',
+
+        params: {
+          store: to.params.store,
+        },
+
+        query: {
+          redirect: to.fullPath,
+        },
+      }
+    }
 
     return {
       name: adminRoute
@@ -466,11 +556,15 @@ router.beforeEach((to) => {
     }
   }
 
+  // Protect administrator routes
+
   if (to.meta.admin && !auth.isAdmin) {
     return {
       name: 'account',
     }
   }
+
+  // Handle authenticated business registration
 
   if (to.name === 'business-register' && auth.user) {
 
@@ -479,7 +573,21 @@ router.beforeEach((to) => {
       : { name: 'open-store' }
   }
 
+  // Redirect authenticated users from guest pages
+
   if (to.meta.guestOnly && auth.user) {
+
+    // Preserve independent business context
+
+    if (storefrontRoute) {
+      return {
+        name: 'store-account',
+
+        params: {
+          store: to.params.store,
+        },
+      }
+    }
 
     if (to.name === 'admin-login') {
 
