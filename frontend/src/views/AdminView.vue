@@ -4,8 +4,10 @@ import { useRoute } from 'vue-router'
 import { api } from '@/api/http'
 import { money, dateShort } from '@/utils/format'
 import ProductImage from '@/components/ProductImage.vue'
+import { usePlatformStore } from '@/stores/platform'
 
 const route = useRoute()
+const platform = usePlatformStore()
 
 const tab = computed(() =>
   route.query.tab === 'orders' ? 'orders' : 'products'

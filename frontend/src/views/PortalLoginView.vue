@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/http'
+import { usePlatformStore } from '@/stores/platform'
 
 import {
   ShieldCheck,
@@ -15,6 +16,7 @@ import {
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const platform = usePlatformStore()
 
 const email = ref('')
 const password = ref('')
@@ -170,7 +172,7 @@ async function login() {
 
     <div v-if="!isAdmin" class="register-section">
 
-      <p>New to IVISION?</p>
+      <p>New to {{ platform.branding.platform_name }}?</p>
 
       <RouterLink to="/business/register">
         Create Your Business Account
@@ -336,5 +338,34 @@ async function login() {
   .login-heading h1 {
     font-size: 23px;
   }
+}
+/* Dynamic platform login branding */
+
+.login-card {
+  color: #111827;
+  background: #FFFFFF;
+  font-family:
+    var(--platform-font, system-ui, sans-serif);
+}
+
+.portal-icon {
+  background:
+    var(--platform-primary, #111827);
+
+  color:
+    var(--platform-button-text, #FFFFFF);
+}
+
+.login-button {
+  background:
+    var(--platform-button, #111827);
+
+  color:
+    var(--platform-button-text, #FFFFFF);
+}
+
+.field input:focus {
+  outline-color:
+    var(--platform-primary, #111827);
 }
 </style>

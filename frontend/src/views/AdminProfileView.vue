@@ -4,6 +4,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/api/http'
+import { usePlatformStore } from '@/stores/platform'
 
 import {
   UserRound,
@@ -20,6 +21,7 @@ import {
 
 const auth = useAuthStore()
 const router = useRouter()
+const platform = usePlatformStore()
 
 const profile = ref(null)
 const loading = ref(true)

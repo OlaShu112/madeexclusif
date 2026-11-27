@@ -2,6 +2,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { api } from '@/api/http'
+import { usePlatformStore } from '@/stores/platform'
 
 import {
   ShoppingBag,
@@ -25,6 +26,7 @@ const days = ref(30)
 const analytics = ref(null)
 const loading = ref(false)
 const error = ref('')
+const platform = usePlatformStore()
 
 const money = value =>
   new Intl.NumberFormat('en-GB', {

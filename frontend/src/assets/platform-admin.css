@@ -1,0 +1,329 @@
+.platform-admin-page {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.platform-admin-page .page-heading {
+  margin-bottom: 28px;
+}
+
+.platform-admin-page .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.platform-admin-page h1 {
+  margin: 10px 0;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.platform-admin-page .page-description {
+  font-size: 14px;
+  opacity: 0.75;
+  line-height: 1.6;
+}
+
+.platform-admin-page .statistics-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(190px, 1fr));
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.platform-admin-page .statistic-card,
+.platform-admin-page .admin-panel {
+  background: #FFFFFF;
+  color: #111827;
+  border: 1px solid #E2E8F0;
+  border-radius: 12px;
+}
+
+.platform-admin-page .statistic-card {
+  padding: 22px;
+}
+
+.platform-admin-page .statistic-card span {
+  display: block;
+  font-size: 13px;
+  color: #64748B;
+}
+
+.platform-admin-page .statistic-card strong {
+  display: block;
+  font-size: 29px;
+  margin-top: 12px;
+}
+
+.platform-admin-page .admin-panel {
+  padding: 22px;
+  margin-bottom: 24px;
+}
+
+.platform-admin-page .panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.platform-admin-page h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.platform-admin-page .filter-bar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.platform-admin-page .filter-bar input,
+.platform-admin-page .filter-bar select,
+.platform-admin-page textarea {
+  padding: 11px 13px;
+  border: 1px solid #CBD5E1;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #111827;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.platform-admin-page .search-input {
+  flex: 1;
+  min-width: 180px;
+}
+
+.platform-admin-page .table-wrapper {
+  overflow-x: auto;
+}
+
+.platform-admin-page table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.platform-admin-page th {
+  background: #F8FAFC;
+  color: #64748B;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.platform-admin-page th,
+.platform-admin-page td {
+  padding: 15px 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.platform-admin-page td small {
+  display: block;
+  color: #64748B;
+  margin-top: 5px;
+}
+
+.platform-admin-page tbody tr:hover {
+  background: #F8FAFC;
+}
+
+.platform-admin-page .primary-button,
+.platform-admin-page .secondary-button,
+.platform-admin-page .danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 15px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.platform-admin-page .primary-button {
+  background: var(--platform-button, #111827);
+  color: var(--platform-button-text, #FFFFFF);
+  border: 1px solid transparent;
+}
+
+.platform-admin-page .secondary-button {
+  background: #FFFFFF;
+  color: #334155;
+  border: 1px solid #CBD5E1;
+}
+
+.platform-admin-page .danger-button {
+  background: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+
+.platform-admin-page button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.platform-admin-page .status-label {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #F1F5F9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.platform-admin-page .status-label.active,
+.platform-admin-page .status-label.verified,
+.platform-admin-page .status-label.paid {
+  background: #DCFCE7;
+  color: #166534;
+}
+
+.platform-admin-page .status-label.blocked,
+.platform-admin-page .status-label.unverified {
+  background: #FEF2F2;
+  color: #991B1B;
+}
+
+.platform-admin-page .pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+  font-size: 13px;
+}
+
+.platform-admin-page .pagination-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.platform-admin-page .message {
+  padding: 15px;
+  border-radius: 7px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.platform-admin-page .message.error {
+  background: #FEF2F2;
+  color: #991B1B;
+}
+
+.platform-admin-page .message.success {
+  background: #F0FDF4;
+  color: #166534;
+}
+
+.platform-admin-page .empty-state {
+  text-align: center;
+  padding: 35px 15px;
+  color: #64748B;
+}
+
+.platform-admin-page .details-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
+  margin: 20px 0;
+}
+
+.platform-admin-page .details-grid span {
+  display: block;
+  color: #64748B;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.platform-admin-page .details-grid strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.platform-admin-page .modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.platform-admin-page .modal-panel {
+  width: 100%;
+  max-width: 850px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  background: #FFFFFF;
+  color: #111827;
+  border-radius: 14px;
+  padding: 26px;
+  box-sizing: border-box;
+}
+
+.platform-admin-page .modal-panel h3 {
+  margin: 26px 0 15px;
+  font-size: 16px;
+}
+
+.platform-admin-page .modal-panel pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #F8FAFC;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.platform-admin-page .action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.platform-admin-page button:focus-visible,
+.platform-admin-page input:focus-visible,
+.platform-admin-page select:focus-visible,
+.platform-admin-page textarea:focus-visible {
+  outline: 2px solid #64748B;
+  outline-offset: 2px;
+}
+
+@media (max-width: 650px) {
+  .platform-admin-page h1 {
+    font-size: 25px;
+  }
+
+  .platform-admin-page .admin-panel {
+    padding: 15px;
+  }
+
+  .platform-admin-page .filter-bar > * {
+    width: 100%;
+  }
+
+  .platform-admin-page .modal-panel {
+    padding: 18px;
+  }
+}

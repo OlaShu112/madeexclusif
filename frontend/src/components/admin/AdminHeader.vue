@@ -1,8 +1,8 @@
-
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { usePlatformStore } from '@/stores/platform'
 
 import {
   Menu,
@@ -18,6 +18,7 @@ defineEmits(['toggle'])
 
 const auth = useAuthStore()
 const router = useRouter()
+const platform = usePlatformStore()
 
 const dropdownOpen = ref(false)
 const profileMenu = ref(null)
@@ -82,8 +83,13 @@ onBeforeUnmount(() => {
       </button>
 
       <div class="header-title">
-        <strong>Administration Portal</strong>
-        <small>Made Exclusif Marketplace</small>
+        <strong>
+          {{ platform.branding.administration_title }}
+        </strong>
+        <small>
+          {{ platform.branding.platform_name }} —
+          {{ platform.branding.tagline }}
+        </small>
       </div>
 
     </div>
@@ -435,5 +441,61 @@ onBeforeUnmount(() => {
   .header-right {
     gap: 10px;
   }
+}
+
+/* Dynamic IVISION administration branding */
+
+.admin-header {
+  background: var(--platform-header, #FFFFFF);
+  color: var(--platform-text, #111827);
+  font-family: var(--platform-font, system-ui, sans-serif);
+}
+
+.header-title strong,
+.profile-details strong {
+  color: var(--platform-text, #111827);
+}
+
+.header-title small,
+.profile-details small {
+  color: var(--platform-text, #111827);
+  opacity: 0.65;
+}
+
+.menu-button {
+  background: var(--platform-header, #FFFFFF);
+  color: var(--platform-text, #111827);
+}
+
+.storefront-link {
+  color: var(--platform-text, #111827);
+}
+
+.profile-icon {
+  background: var(--platform-primary, #111827);
+  color: var(--platform-button-text, #FFFFFF);
+}
+
+.profile-dropdown {
+  background: var(--platform-header, #FFFFFF);
+}
+
+.dropdown-user strong,
+.dropdown-item:not(.logout-item) {
+  color: var(--platform-text, #111827);
+}
+
+.dropdown-user small {
+  color: var(--platform-text, #111827);
+  opacity: 0.7;
+}
+
+.role-label {
+  background: var(--platform-button, #111827);
+  color: var(--platform-button-text, #FFFFFF);
+}
+
+.dropdown-item:not(.logout-item):hover {
+  background: rgba(128, 128, 128, 0.12);
 }
 </style>

@@ -158,3 +158,6 @@ api/public/storage
 *.swp
 *.tmp
 .DS_Store
+# Local development backups
+*.finance-backup
+*.communication-backup

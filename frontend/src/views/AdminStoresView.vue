@@ -2,7 +2,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { api } from '@/api/http'
+import { usePlatformStore } from '@/stores/platform'
 
+
+const platform = usePlatformStore()
 const stores = ref([])
 const loading = ref(true)
 const error = ref('')

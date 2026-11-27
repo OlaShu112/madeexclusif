@@ -685,4 +685,41 @@ Route::prefix('admin')
             ->middleware('throttle:10,1');
     });
 
+
+/*
+|--------------------------------------------------------------------------
+| Business Management Routes
+|--------------------------------------------------------------------------
+*/
+
 require __DIR__.'/business-management.php';
+
+/*
+|--------------------------------------------------------------------------
+| Platform Administration Routes
+|--------------------------------------------------------------------------
+*/
+
+require __DIR__.'/platform-admin.php';
+
+/*
+|--------------------------------------------------------------------------
+| Platform Finance and Communication Routes
+|--------------------------------------------------------------------------
+*/
+
+require __DIR__.'/platform-finance.php';
+
+require __DIR__.'/platform-communication.php';
+
+/*
+|--------------------------------------------------------------------------
+| Platform Finance and Communication Routes
+|--------------------------------------------------------------------------
+*/
+
+require __DIR__ . '/platform-finance.php';
+
+require __DIR__ . '/platform-finance-write.php';
+
+require __DIR__ . '/platform-communication.php';

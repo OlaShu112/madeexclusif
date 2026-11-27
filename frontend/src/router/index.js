@@ -1,4 +1,3 @@
-
 import {
   createRouter,
   createWebHistory,
@@ -23,6 +22,13 @@ import { useAuthStore } from '@/stores/auth'
  * - Dedicated administration portal
  * - Administrator analytics
  * - Administrator business management
+ * - Administrator platform branding
+ * - Administrator platform settings
+ * - Platform customer management
+ * - Platform subscription management
+ * - IVISION Platform Finance
+ * - IVISION Platform Communication
+ * - Platform audit logs
  * - Administrator profile management
  */
 
@@ -450,6 +456,173 @@ const routes = [
         name: 'admin-stores',
         component: () =>
           import('@/views/AdminStoresView.vue'),
+      },
+
+      // Administrator platform branding
+
+      {
+        path: 'branding',
+        name: 'admin-platform-branding',
+        component: () =>
+          import('@/views/admin/PlatformBrandingView.vue'),
+      },
+
+      // Administrator platform settings
+
+      {
+        path: 'settings',
+        name: 'admin-platform-settings',
+        component: () =>
+          import('@/views/admin/PlatformSettingsView.vue'),
+      },
+
+      // Platform customer management
+
+      {
+        path: 'customers',
+        name: 'admin-platform-customers',
+        component: () =>
+          import('@/views/admin/CustomersView.vue'),
+      },
+
+      // Platform subscription management
+
+      {
+        path: 'subscriptions',
+        name: 'admin-platform-subscriptions',
+        component: () =>
+          import('@/views/admin/SubscriptionsView.vue'),
+      },
+
+      // IVISION Platform Finance
+
+      {
+        path: 'finance',
+
+        component: () =>
+          import('@/views/admin/finance/FinanceLayout.vue'),
+
+        children: [
+          {
+            path: '',
+            name: 'admin-finance-overview',
+
+            component: () =>
+              import(
+                '@/views/admin/finance/FinanceOverviewView.vue'
+              ),
+          },
+        ],
+      },
+
+      // IVISION Platform Communication
+
+      {
+        path: 'communication',
+
+        component: () =>
+          import(
+            '@/views/admin/communication/CommunicationLayout.vue'
+          ),
+
+        children: [
+
+          {
+            path: '',
+
+            name: 'admin-communication-overview',
+
+            component: () =>
+              import(
+                '@/views/admin/communication/CommunicationOverviewView.vue'
+              ),
+
+            meta: {
+              communicationPermission:
+                'communication.view',
+            },
+          },
+
+          ...[
+
+            {
+              path: 'messages',
+              permission: 'communication.messages.view',
+            },
+
+            {
+              path: 'templates',
+              permission: 'communication.templates.view',
+            },
+
+            {
+              path: 'announcements',
+              permission: 'communication.announcements.view',
+            },
+
+            {
+              path: 'notifications',
+              permission: 'communication.notifications.view',
+            },
+
+            {
+              path: 'recipients',
+              permission: 'communication.recipients.view',
+            },
+
+            {
+              path: 'delivery',
+              permission: 'communication.delivery.view',
+            },
+
+            {
+              path: 'automation',
+              permission: 'communication.automation.view',
+            },
+
+            {
+              path: 'preferences',
+              permission: 'communication.preferences.view',
+            },
+
+            {
+              path: 'settings',
+              permission: 'communication.settings.view',
+            },
+
+          ].map(item => ({
+
+            path: item.path,
+
+            name: `admin-communication-${item.path}`,
+
+            component: () =>
+              import(
+                '@/views/admin/communication/CommunicationResourceView.vue'
+              ),
+
+            props: {
+              resource: item.path,
+            },
+
+            meta: {
+              communicationPermission:
+                item.permission,
+            },
+
+          })),
+
+        ],
+
+      },
+
+      // Platform audit logs
+
+      {
+        path: 'audit-logs',
+        name: 'admin-platform-audit-logs',
+        component: () =>
+          import('@/views/admin/AuditLogsView.vue'),
       },
 
       // Administrator profile
