@@ -22,6 +22,7 @@ import {
   ChevronRight,
   LogOut,
   UserRound,
+  Activity,
 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -156,7 +157,7 @@ const sections = [
       },
     ],
   },
-  {
+    {
     title: 'SYSTEM',
     items: [
       {
@@ -173,6 +174,11 @@ const sections = [
         label: 'Security',
         icon: ShieldCheck,
         to: '/admin/security',
+      },
+      {
+        label: 'System Health',
+        icon: Activity,
+        to: '/admin/system/health',
       },
       {
         label: 'Audit Logs',

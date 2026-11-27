@@ -54,7 +54,7 @@ class PlatformBrandingController extends Controller
             'font_family' => [
                 'sometimes',
                 'string',
-                'in:system,Arial,Inter,Roboto,Georgia',
+                'in:Geist,system,Arial,Inter,Roboto,Georgia',
             ],
 
             'appearance' => [

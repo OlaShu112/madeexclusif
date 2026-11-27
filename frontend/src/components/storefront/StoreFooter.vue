@@ -359,7 +359,7 @@ a:hover {
 
 .classic-footer h2 {
   margin: 0;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--store-font, var(--ivision-font-sans));
   font-size: 28px;
   font-weight: 600;
   letter-spacing: 1.5px;

@@ -161,3 +161,24 @@ api/public/storage
 # Local development backups
 *.finance-backup
 *.communication-backup
+
+# Playwright generated reports
+/frontend/playwright-report/
+/frontend/test-results/
+/frontend/playwright/.cache/
+
+# Frontend generated files
+/frontend/coverage/
+/frontend/dist/
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Local development backups
+*.finance-backup
+*.communication-backup
+
+# macOS system files
+.DS_Store

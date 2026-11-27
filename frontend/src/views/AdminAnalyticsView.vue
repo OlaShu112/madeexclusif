@@ -136,7 +136,7 @@ onMounted(loadAnalytics)
     <header class="page-header">
       <div>
         <div class="eyebrow">
-          MADE EXCLUSIF ADMINISTRATION
+          {{ platform.branding.platform_name || 'IVISION' }} Administration
         </div>
 
         <h1>Business Overview</h1>

@@ -210,7 +210,7 @@ watch(orderStatus, () => {
 <template>
   <div class="admin-management">
     <div class="management-heading">
-      <p class="eyebrow">MADE EXCLUSIF ADMINISTRATION</p>
+      <p class="eyebrow">{{ platform.branding.platform_name || 'IVISION' }} Administration</p>
       <h1>{{ tab === 'orders' ? 'Order Management' : 'Product Management' }}</h1>
       <p class="muted">
         {{ tab === 'orders'

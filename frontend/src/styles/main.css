@@ -7,8 +7,8 @@
   --gold: #b8975a;
   --danger: #a33a3a;
   --ok: #3d6b4a;
-  --serif: 'Cormorant Garamond', Georgia, serif;
-  --sans: 'Jost', system-ui, sans-serif;
+  --serif: var(--ivision-font-sans);
+  --sans: var(--ivision-font-sans);
   --maxw: 1280px;
 }
 

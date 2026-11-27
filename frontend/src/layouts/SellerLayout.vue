@@ -165,7 +165,7 @@ onUnmounted(() => {
   width: 100%;
   background: #f6f7f9;
   color: #171717;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--ivision-font-sans);
 }
 
 .sidebar-wrapper {

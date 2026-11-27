@@ -1,0 +1,241 @@
+/*
+|--------------------------------------------------------------------------
+| IVISION Typography Design System
+|--------------------------------------------------------------------------
+| Geist Sans — Application interface
+| Geist Mono — Technical information
+|--------------------------------------------------------------------------
+*/
+
+:root {
+
+  --ivision-font-sans:
+    'Geist Variable',
+    system-ui,
+    sans-serif;
+
+  --ivision-font-mono:
+    'Geist Mono Variable',
+    monospace;
+
+  --platform-font:
+    var(--ivision-font-sans);
+
+  --sans: var(--ivision-font-sans);
+  --serif: var(--ivision-font-sans);
+
+  --ivision-font-weight-normal: 400;
+  --ivision-font-weight-medium: 500;
+  --ivision-font-weight-semibold: 600;
+  --ivision-font-weight-bold: 700;
+
+  --ivision-font-size-xs: 0.75rem;
+  --ivision-font-size-sm: 0.875rem;
+  --ivision-font-size-base: 1rem;
+  --ivision-font-size-lg: 1.125rem;
+  --ivision-font-size-xl: 1.25rem;
+  --ivision-font-size-2xl: 1.5rem;
+  --ivision-font-size-3xl: 1.875rem;
+  --ivision-font-size-4xl: 2.25rem;
+
+}
+
+/* Global typography */
+
+html,
+body,
+#app {
+
+  font-family: var(--ivision-font-sans);
+
+}
+
+body {
+
+  font-weight: 400;
+  line-height: 1.6;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+}
+
+/* Platform layouts */
+
+.admin-layout,
+.portal-auth {
+
+  font-family:
+    var(--platform-font, var(--ivision-font-sans));
+
+  --sans: var(--platform-font);
+  --serif: var(--platform-font);
+
+}
+
+.iv-platform,
+.seller-layout {
+
+  font-family: var(--ivision-font-sans);
+
+}
+
+/* Headings */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+
+  font-family: inherit;
+  line-height: 1.25;
+
+}
+
+h1 {
+
+  font-weight: 700;
+  letter-spacing: -0.045em;
+
+}
+
+h2 {
+
+  font-weight: 600;
+  letter-spacing: -0.035em;
+
+}
+
+h3 {
+
+  font-weight: 600;
+  letter-spacing: -0.025em;
+
+}
+
+h4,
+h5,
+h6 {
+
+  font-weight: 600;
+  letter-spacing: -0.015em;
+
+}
+
+/* Forms */
+
+button,
+input,
+select,
+textarea,
+optgroup {
+
+  font-family: inherit;
+
+}
+
+button,
+label {
+
+  font-weight: 500;
+
+}
+
+input,
+select,
+textarea {
+
+  font-weight: 400;
+
+}
+
+input::placeholder,
+textarea::placeholder {
+
+  font-family: inherit;
+  font-weight: 400;
+
+}
+
+/* Tables */
+
+table,
+th,
+td {
+
+  font-family: inherit;
+
+}
+
+th {
+
+  font-weight: 600;
+
+}
+
+/* Dashboard and financial values */
+
+.numeric,
+.stat-value,
+.metric-value,
+.currency-value,
+.financial-value,
+.tabular-numbers {
+
+  font-variant-numeric: tabular-nums;
+
+}
+
+/* Technical information */
+
+code,
+pre,
+kbd,
+samp,
+.font-mono,
+.transaction-reference,
+.system-log,
+.technical-reference {
+
+  font-family: var(--ivision-font-mono);
+  font-weight: 400;
+
+}
+
+pre {
+
+  line-height: 1.7;
+
+}
+
+/* Utility classes */
+
+.font-geist {
+
+  font-family: var(--ivision-font-sans);
+
+}
+
+.font-geist-mono {
+
+  font-family: var(--ivision-font-mono);
+
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
+}

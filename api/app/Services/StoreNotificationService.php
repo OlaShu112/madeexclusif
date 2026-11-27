@@ -24,7 +24,7 @@ class StoreNotificationService
             $store,
             "store:{$store->id}:application",
             'store_application',
-            'Business Application Received | Made Exclusif'
+            'Business Application Received | IVISION'
         );
 
         $adminEmail = config('marketplace.emails.admin');
@@ -48,7 +48,7 @@ class StoreNotificationService
             recipientEmail: $adminEmail,
 
             subject:
-                'New Business Application | Made Exclusif',
+                'New Business Application | IVISION',
 
             recipientName: 'Administration Team',
 
@@ -69,7 +69,7 @@ class StoreNotificationService
             $store,
             "store:{$store->id}:approved:{$store->status_version}",
             'store_approved',
-            'Your Store Is Approved | Made Exclusif'
+            'Your Business Is Approved | IVISION'
         );
 
         if ($firstApproval) {
@@ -78,7 +78,7 @@ class StoreNotificationService
                 $store,
                 "store:{$store->id}:welcome",
                 'seller_welcome',
-                'Welcome to Made Exclusif for Business!'
+                'Welcome to IVISION for Business!'
             );
         }
     }
@@ -93,7 +93,7 @@ class StoreNotificationService
             $store,
             "store:{$store->id}:rejected:{$store->status_version}",
             'store_rejected',
-            'Business Application Update | Made Exclusif'
+            'Business Application Update | IVISION'
         );
     }
 
@@ -107,7 +107,7 @@ class StoreNotificationService
             $store,
             "store:{$store->id}:suspended:{$store->status_version}",
             'store_suspended',
-            'Important Store Suspension Notice | Made Exclusif'
+            'Important Business Suspension Notice | IVISION'
         );
     }
 

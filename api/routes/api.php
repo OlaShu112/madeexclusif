@@ -723,3 +723,5 @@ require __DIR__ . '/platform-finance.php';
 require __DIR__ . '/platform-finance-write.php';
 
 require __DIR__ . '/platform-communication.php';
+
+require __DIR__ . '/platform-system.php';

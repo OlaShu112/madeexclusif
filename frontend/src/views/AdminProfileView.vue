@@ -215,7 +215,7 @@ onMounted(loadProfile)
 
     <div class="page-heading">
       <p class="eyebrow">
-        MADE EXCLUSIF ADMINISTRATION
+        {{ platform.branding.platform_name || 'IVISION' }} Administration
       </p>
 
       <h1>My Profile</h1>

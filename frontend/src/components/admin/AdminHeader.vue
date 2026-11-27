@@ -101,7 +101,7 @@ onBeforeUnmount(() => {
         class="storefront-link"
       >
         <ExternalLink :size="17" />
-        <span>View Storefront</span>
+        <span>View Website</span>
       </RouterLink>
 
       <div
@@ -199,7 +199,7 @@ onBeforeUnmount(() => {
               @click="closeDropdown"
             >
               <ExternalLink :size="18" />
-              View Storefront
+              View Website
             </RouterLink>
 
             <div class="dropdown-divider"></div>

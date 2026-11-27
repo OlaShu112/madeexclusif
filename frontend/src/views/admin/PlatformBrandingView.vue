@@ -2,6 +2,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { usePlatformStore } from '@/stores/platform'
 
+import {
+  PLATFORM_FONTS,
+  resolvePlatformFont,
+} from '@/utils/platformTypography'
+
 const platform = usePlatformStore()
 
 const form = reactive({})
@@ -350,14 +355,13 @@ onMounted(load)
             Font Family
 
             <select v-model="form.font_family">
-              <option value="system">
-                System Default
+              <option
+                v-for="(font, key) in PLATFORM_FONTS"
+                :key="key"
+                :value="key"
+              >
+                {{ font.label }}
               </option>
-
-              <option value="Arial">Arial</option>
-              <option value="Inter">Inter</option>
-              <option value="Roboto">Roboto</option>
-              <option value="Georgia">Georgia</option>
             </select>
           </label>
 
@@ -386,9 +390,7 @@ onMounted(load)
             background: form.background_colour,
             color: form.text_colour,
             fontFamily:
-              form.font_family === 'system'
-                ? 'system-ui'
-                : form.font_family
+              resolvePlatformFont(form.font_family)
           }"
         >
           <aside

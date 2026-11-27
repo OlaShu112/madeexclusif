@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'name' => env('APP_NAME', 'Made Exclusif'),
+    'name' => env('APP_NAME', 'IVISION'),
 
     'currency' => env('STRIPE_CURRENCY', 'gbp'),
 

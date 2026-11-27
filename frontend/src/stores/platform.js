@@ -1,13 +1,25 @@
 import { defineStore } from 'pinia'
 import { api } from '@/api/http'
 
+import {
+  DEFAULT_PLATFORM_FONT,
+  resolvePlatformFont,
+} from '@/utils/platformTypography'
+
 export const usePlatformStore = defineStore('platform', {
+
   state: () => ({
+
     branding: {
+
       platform_name: 'IVISION',
       tagline: 'Intelligent Digital Technology',
-      administration_title: 'Platform Administration',
-      browser_title: 'IVISION — Administration Portal',
+
+      administration_title:
+        'Platform Administration',
+
+      browser_title:
+        'IVISION — Administration Portal',
 
       primary_colour: '#111827',
       secondary_colour: '#334155',
@@ -26,8 +38,10 @@ export const usePlatformStore = defineStore('platform', {
 
       login_background_colour: '#F5F6F9',
 
-      font_family: 'system',
+      font_family: DEFAULT_PLATFORM_FONT,
+
       appearance: 'light',
+
       copyright_text: 'All rights reserved.',
 
       primaryLogo: null,
@@ -37,16 +51,19 @@ export const usePlatformStore = defineStore('platform', {
       favicon: null,
       loginLogo: null,
       loginBackground: null,
-      emailLogo: null
+      emailLogo: null,
+
     },
 
     settings: {},
     loading: false,
     loaded: false,
-    error: null
+    error: null,
+
   }),
 
   getters: {
+
     platformName: state =>
       state.branding.platform_name,
 
@@ -62,7 +79,13 @@ export const usePlatformStore = defineStore('platform', {
       state.branding.loginLogo ||
       state.branding.primaryLogo,
 
+    platformFont: state =>
+      resolvePlatformFont(
+        state.branding.font_family
+      ),
+
     themeVariables: state => ({
+
       '--platform-primary':
         state.branding.primary_colour,
 
@@ -100,103 +123,135 @@ export const usePlatformStore = defineStore('platform', {
         state.branding.button_text_colour,
 
       '--platform-font':
-        state.branding.font_family === 'system'
-          ? 'system-ui, sans-serif'
-          : `${state.branding.font_family}, sans-serif`
-    })
+        resolvePlatformFont(
+          state.branding.font_family
+        ),
+
+    }),
+
   },
 
   actions: {
+
     async loadBranding() {
+
       this.loading = true
       this.error = null
 
       try {
-        const response = await api('/platform/branding')
+
+        const response = await api(
+          '/platform/branding'
+        )
 
         this.branding = {
           ...this.branding,
-          ...response
+          ...response,
         }
 
         this.loaded = true
 
         return this.branding
+
       } catch (error) {
+
         this.error = error.message
 
         throw error
+
       } finally {
+
         this.loading = false
+
       }
+
     },
 
     async saveBranding(data) {
+
       const response = await api(
         '/admin/platform/branding',
         {
           method: 'PUT',
-          body: data
+          body: data,
         }
       )
 
       this.branding = {
         ...this.branding,
-        ...response.branding
+        ...response.branding,
       }
 
       return response
+
     },
 
     async resetBranding() {
+
       const response = await api(
         '/admin/platform/branding/reset',
         {
-          method: 'POST'
+          method: 'POST',
         }
       )
 
       this.branding = {
         ...this.branding,
-        ...response.branding
+        ...response.branding,
       }
 
       return response
+
     },
 
     async loadSettings() {
+
       this.settings = await api(
         '/admin/platform/settings'
       )
 
       return this.settings
+
     },
 
     async saveSettings(group, data) {
+
       const response = await api(
         `/admin/platform/settings/${group}`,
         {
           method: 'PUT',
-          body: data
+          body: data,
         }
       )
 
       this.settings = response.settings
 
       return response
+
     },
 
-    async uploadMedia(file, collection, altText = '') {
+    async uploadMedia(
+      file,
+      collection,
+      altText = ''
+    ) {
+
       const body = new FormData()
 
       body.append('file', file)
       body.append('collection', collection)
       body.append('alt_text', altText)
 
-      return api('/admin/platform/media', {
-        method: 'POST',
-        body
-      })
-    }
-  }
+      return api(
+        '/admin/platform/media',
+        {
+          method: 'POST',
+          body,
+        }
+      )
+
+    },
+
+  },
+
 })

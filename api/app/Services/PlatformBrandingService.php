@@ -40,7 +40,7 @@ class PlatformBrandingService
             'button_text_colour' => '#FFFFFF',
             'login_background_colour' => '#F5F6F9',
 
-            'font_family' => 'system',
+            'font_family' => 'Geist',
             'appearance' => 'light',
             'copyright_text' => 'All rights reserved.',
         ];

@@ -12,9 +12,14 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Represents an independent business storefront
- * operating on the Made Exclusif marketplace.
+ * Represents an independent business operating
+ * on the IVISION technology platform.
+ *
+ * Each business maintains its own storefront,
+ * products, customers, orders, payment settings,
+ * subscriptions and website configuration.
  */
+
 class Store extends Model
 {
     public const STATUSES = [

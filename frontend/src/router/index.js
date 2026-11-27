@@ -615,6 +615,18 @@ const routes = [
         ],
 
       },
+      // IVISION System Health
+
+      {
+        path: 'system/health',
+
+        name: 'admin-system-health',
+
+        component: () =>
+          import(
+            '@/views/admin/system/SystemHealthView.vue'
+          ),
+      },
 
       // Platform audit logs
 

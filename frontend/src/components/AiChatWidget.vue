@@ -148,7 +148,7 @@ async function sendMessage() {
   right: 24px;
   bottom: 24px;
   z-index: 9999;
-  font-family: Arial, sans-serif;
+  font-family: var(--ivision-font-sans);
 }
 
 .chat-launcher {

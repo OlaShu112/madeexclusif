@@ -147,7 +147,7 @@ async function updateStatus(store, status) {
 
   if (store.is_main) {
     error.value =
-      'The main Made Exclusif store cannot be modified here.'
+      `The primary store (${store.name}) cannot be modified here.`
     return
   }
 
@@ -233,7 +233,7 @@ onMounted(() => loadStores())
     <div class="page-heading">
       <div>
         <p class="eyebrow">
-          Made Exclusif Administration
+          {{ platform.branding.platform_name || 'IVISION' }} Administration
         </p>
 
         <h1>Store Management</h1>
